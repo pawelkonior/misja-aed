@@ -60,7 +60,7 @@ function NearbyService({ onOpen }: { onOpen: () => void }) {
     <button
       type="button"
       className="nearby-service"
-      aria-labelledby="nearby-title nearby-action"
+      aria-label="Defibrylator w pobliżu Otwórz mapę"
       onClick={onOpen}
     >
       <img
@@ -72,8 +72,8 @@ function NearbyService({ onOpen }: { onOpen: () => void }) {
         height="1024"
       />
       <span className="nearby-body">
-        <strong id="nearby-title">Defibrylator w pobliżu</strong>{' '}
-        <span className="nearby-action" id="nearby-action">
+        <strong>Defibrylator w pobliżu</strong>{' '}
+        <span className="nearby-action">
           Otwórz mapę <ArrowRight aria-hidden="true" size={18} />
         </span>
       </span>

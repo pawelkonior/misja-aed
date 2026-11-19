@@ -32,7 +32,6 @@ test('shows the AED service beside mobile wallet documents and tabs', async ({ p
   expect(
     (
       await new AxeBuilder({ page })
-        .setLegacyMode()
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
         .analyze()
     ).violations,

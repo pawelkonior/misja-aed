@@ -4,8 +4,8 @@ Weryfikacja z 19 listopada 2026 r. obejmowała produkcyjny build i prawdziwe prz
 
 | Sprawdzenie | Wynik |
 | --- | --- |
-| TypeScript, Oxlint, Prettier, testy jednostkowe i build | Pełne polecenie `npm run check` przeszło. |
-| Interfejs | Scenariusze Playwright obejmują pulpit portfela, odmowę udostępnienia lokalizacji, trasę z GPS, wskazówki piesze, wejście do AR, powiadomienie z możliwością anulowania, dojście do AED, nagranie przejścia i pobranie danych. Mobilny viewport zajmuje cały ekran, a podgląd z myszą ma pomarańczową obudowę telefonu. |
+| TypeScript, Oxlint, Prettier, testy jednostkowe i build | Pełne polecenie `npm run check` przeszło, w tym 60 testów jednostkowych. |
+| Interfejs | Wszystkie 24 scenariusze Playwright przeszły w Chromium, Firefox, WebKit i mobilnym Chromium. Obejmują pulpit portfela, odmowę udostępnienia lokalizacji, trasę z GPS, wskazówki piesze, wejście do AR, powiadomienie z możliwością anulowania, dojście do AED, nagranie przejścia i pobranie danych. Mobilny viewport zajmuje cały ekran, a podgląd z myszą ma pomarańczową obudowę telefonu. |
 | Odliczanie do połączenia | Zegar testowy i zastępcza obsługa telefonu potwierdzają jedno otwarcie po 10 s. Anulowanie w ostatniej sekundzie lub opuszczenie trasy zatrzymuje wywołanie. W produkcji odbiorcą jest systemowa aplikacja telefoniczna przez `tel:112`. Współrzędne są wyświetlane do przekazania operatorowi. W tym przebiegu testów nie dzwoniono pod prawdziwy numer. |
 | Nagranie w aplikacji | Pionowy film 720 × 1280 trwa 25,2 s. Przez 16 s pokazuje rzeczywiste podejście do bramy. W 22. sekundzie pojawiają się zdjęcie szafki i przycisk instrukcji. Licznik w nagraniu wykorzystuje orientacyjne odległości. Kamera na żywo wylicza odległości z GPS i trasy pieszej. |
 | Rzeczywiste wejście mikrofonowe | Chromium podało polski plik WAV przez wirtualny mikrofon. Silnik Vosk rozpoznał słowo „dalej”; aplikacja przeszła z kroku o elektrodach do kroku o odsunięciu się. Po wyłączeniu mikrofonu powtórzenie komendy pozostawiło ten sam krok. |
