@@ -1,205 +1,122 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
-
-import { DEMO_SUMMARY, mountAedMap } from '../../map/index.js';
-import type { MapSession, NavigationPayload } from '../../map/index.js';
-import { ArGuide } from '../features/rescue/Rescue';
-import type { ArProps } from '../features/rescue/ArGuide';
+import { mountAedMap } from '../../map/index.js';
+import type { MapOptions, MapSession, NavigationPayload } from '../../map/index.js';
+import { ArGuide, requestArCompass, type ArProps } from '../features/rescue/ArGuide';
 import { App } from './App';
 
-vi.mock('../../map/index.js', () => ({
-  DEMO_SUMMARY: {
-    target: { id: 'demo', name: 'AED demonstracyjny', lat: 52.23, lon: 21.01 },
-    position: { lat: 52.231, lon: 21.012 },
-  },
-  mountAedMap: vi.fn<typeof mountAedMap>(),
-}));
-
-vi.mock('../features/rescue/Rescue', () => ({
-  ArGuide: vi.fn<typeof ArGuide>(({ onBack, onArrive }: ArProps) => (
-    <section>
-      <button onClick={onBack}>Powrót z AR</button>
-      <button onClick={onArrive}>Mam urządzenie</button>
+vi.mock('../../map/index.js', () => ({ mountAedMap: vi.fn<typeof mountAedMap>() }));
+vi.mock('../features/rescue/ArGuide', () => ({
+  requestArCompass: vi.fn<typeof requestArCompass>(),
+  ArGuide: vi.fn<typeof ArGuide>(({ onBack, onArrive, playRecording }: ArProps) => (
+    <section aria-label={playRecording ? 'Nagranie przejścia' : 'Aparat na żywo'}>
+      <button onClick={onBack}>Wróć do mapy</button>
+      <button onClick={onArrive}>Instrukcja AED</button>
     </section>
   )),
+}));
+vi.mock('../features/rescue/Rescue', () => ({
   AedInstructions: ({ onBack }: { onBack: () => void }) => (
     <button onClick={onBack}>Powrót z instrukcji</button>
   ),
 }));
-
+const point = { lat: 52, lon: 21 };
 const selected: NavigationPayload = {
-  target: { id: 'selected', name: 'Wybrane AED', description: 'Hol', lat: 51.7, lon: 20.1 },
-  position: { lat: 51.701, lon: 20.102 },
+  target: { ...point, id: 'a', name: 'Biblioteka', description: 'Hol' },
+  position: { lat: 52.001, lon: 21 },
+  route: null,
   mode: 'live',
-  route: {
-    coordinates: [
-      [20.102, 51.701],
-      [20.1, 51.7],
-    ],
-    distance: 180,
-    duration: 125,
-    steps: [],
-  },
-  path: [],
+  path: [{ lat: 52.001, lon: 21 }, point],
 };
-
-const getState = vi.fn<MapSession['getState']>();
-const destroy = vi.fn<MapSession['destroy']>();
-const mapOptions = () => {
-  const options = vi.mocked(mountAedMap).mock.lastCall?.[1];
-  if (!options) throw new Error('Expected a mounted map');
-  return options;
-};
-const desktopNav = () => within(screen.getByRole('navigation', { name: 'Nawigacja główna' }));
-const heading = (name: string) => screen.findByRole('heading', { level: 1, name });
-
+const destroy = vi.fn<() => void>();
+const setActive = vi.fn<(visible: boolean) => void>();
+function options(): MapOptions {
+  const result = vi.mocked(mountAedMap).mock.lastCall?.[1];
+  if (!result) throw Error('Map was not mounted');
+  return result;
+}
 beforeEach(() => {
   window.history.replaceState(null, '', '/');
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
-  vi.mocked(mountAedMap).mockReturnValue({ destroy, getState });
-  getState.mockReturnValue({
-    ...selected,
-    target: null,
-    route: null,
-    view: 'list',
-    nearest: [],
-    usedFallback: false,
-    mode: 'demo',
+  vi.mocked(mountAedMap).mockReturnValue({
+    destroy,
+    setActive,
+    getState: vi.fn<MapSession['getState']>(),
   });
 });
 
-it('opens the dashboard for unknown routes and keeps the prototype document dismissible', async () => {
-  window.history.replaceState(null, '', '/#unknown');
+it('keeps the home screen free of emergency actions and only starts the map when selected', async () => {
   const user = userEvent.setup();
   render(<App />);
-  expect(await heading('Pulpit')).toBeVisible();
-  expect(desktopNav().getByRole('link', { name: 'Pulpit' })).toHaveAttribute(
-    'aria-current',
-    'page',
-  );
-  expect(screen.getByRole('link', { name: /Zadzwoń.*112/ })).toHaveAttribute('href', 'tel:112');
-  const card = screen.getByRole('button', { name: /mDowód/ });
-  await user.click(card);
-  const dialog = screen.getByRole('dialog', { name: 'mDowód' });
-  fireEvent(dialog, new Event('cancel', { cancelable: true }));
-  expect(dialog).not.toBeInTheDocument();
-  await user.click(card);
-  await user.click(screen.getByRole('button', { name: 'Wróć na pulpit' }));
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'mDowód' })).toBeVisible();
+  expect(screen.queryByRole('link', { name: /Zadzwoń/ })).not.toBeInTheDocument();
   expect(mountAedMap).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Defibrylator w pobliżu Otwórz mapę' }));
+  await waitFor(() => expect(mountAedMap).toHaveBeenCalledOnce());
+  act(() => options().onBack?.());
+  expect(await screen.findByRole('heading', { name: 'mObywatel' })).toBeVisible();
+  expect(destroy).toHaveBeenCalledOnce();
 });
-
-it('opens public data and the team page directly and from the dashboard', async () => {
-  const user = userEvent.setup();
-  render(<App />);
-  await user.click(screen.getByRole('button', { name: /Otwarte dane o AED/ }));
-  expect(await heading('Otwarte dane')).toBeVisible();
-  expect(screen.getByRole('link', { name: 'GeoJSON' })).toHaveAttribute('download');
-  await user.click(screen.getByRole('link', { name: 'O projekcie' }));
-  expect(await heading('O projekcie')).toBeVisible();
-  expect(screen.getByRole('link', { name: /Kod, źródła/ })).toHaveAttribute(
-    'href',
-    'https://github.com/pawelkonior/misja-aed',
-  );
-  expect(mountAedMap).not.toHaveBeenCalled();
-});
-
-it('uses the demo route for the AR shortcut and keeps the selection when returning from instructions', async () => {
-  const user = userEvent.setup();
-  const view = render(<App />);
-  await user.click(screen.getByRole('button', { name: /Nawigacja AR/ }));
-  expect(await heading('Nawigacja AR')).toBeVisible();
-  expect(vi.mocked(ArGuide).mock.lastCall?.[0]).toMatchObject({
-    target: DEMO_SUMMARY.target,
-    demo: true,
-  });
-  await user.click(screen.getByRole('button', { name: 'Mam urządzenie' }));
-  expect(await heading('Instrukcja AED')).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Powrót z instrukcji' }));
-  expect(await heading('Mapa AED')).toBeVisible();
-  expect(mountAedMap).toHaveBeenCalledTimes(1);
-  act(() => mapOptions().onBack?.());
-  expect(await heading('Pulpit')).toBeVisible();
-  expect(destroy).toHaveBeenCalledTimes(1);
-  view.unmount();
-  expect(destroy).toHaveBeenCalledTimes(1);
-});
-
-it('hands a selected live route to AR with latitude and longitude in the expected order', async () => {
+it('offers an explicit phone handoff with cancellation when guidance starts and preserves the map session', async () => {
   window.history.replaceState(null, '', '/#mapa');
   const user = userEvent.setup();
   render(<App />);
-  getState.mockReturnValue({
-    ...selected,
-    route: null,
-    view: 'detail',
-    nearest: [],
-    usedFallback: false,
-  });
-  await user.click(desktopNav().getByRole('link', { name: 'Nawigacja AR' }));
-  expect(await heading('Mapa AED')).toBeVisible();
-  expect(ArGuide).not.toHaveBeenCalled();
-
-  getState.mockReturnValue({ ...selected, view: 'route', nearest: [], usedFallback: false });
-  await user.click(desktopNav().getByRole('link', { name: 'Nawigacja AR' }));
-  expect(await heading('Nawigacja AR')).toBeVisible();
-  expect(vi.mocked(ArGuide).mock.lastCall?.[0]).toMatchObject({
-    target: selected.target,
-    origin: selected.position,
-    demo: false,
-    path: [selected.position, { lon: 20.1, lat: 51.7 }],
-  });
-
-  await user.click(screen.getByRole('button', { name: 'Powrót z AR' }));
-  expect(await heading('Mapa AED')).toBeVisible();
-  act(() => mapOptions().onOpenAR?.({ ...selected, route: null }));
-  expect(await heading('Nawigacja AR')).toBeVisible();
-  expect(vi.mocked(ArGuide).mock.lastCall?.[0]).toMatchObject({
-    target: selected.target,
-    path: [],
-    demo: false,
-  });
-});
-
-it('requires a person to confirm possession of the AED before opening instructions on arrival', async () => {
-  window.history.replaceState(null, '', '/#mapa');
-  const user = userEvent.setup();
-  render(<App />);
-  act(() => mapOptions().onArrive?.(selected));
-  const dialog = screen.getByRole('dialog', { name: 'Jesteś w pobliżu AED' });
-  await user.click(within(dialog).getByRole('button', { name: 'Zamknij okno' }));
-  expect(await heading('Mapa AED')).toBeVisible();
-  act(() => mapOptions().onArrive?.(selected));
-  await user.click(screen.getByRole('button', { name: 'Mam AED przy poszkodowanym' }));
-  expect(await heading('Instrukcja AED')).toBeVisible();
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-});
-
-it('opens mobile wallet cards, services, QR sharing and the dataset under More', async () => {
-  const user = userEvent.setup();
-  render(<App />);
-  await user.click(screen.getByRole('button', { name: /mPrawo jazdy/ }));
-  expect(screen.getByRole('dialog', { name: 'mPrawo jazdy' })).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Zamknij okno' }));
-  const mobileNav = within(screen.getByRole('navigation', { name: 'Nawigacja mobilna' }));
-  await user.click(mobileNav.getByRole('link', { name: 'Usługi' }));
-  expect(await heading('Usługi')).toBeVisible();
-  await user.click(screen.getByRole('button', { name: /^Mapa AED/ }));
-  expect(await heading('Mapa AED')).toBeVisible();
-  expect(mobileNav.getByRole('link', { name: 'Usługi' })).toHaveAttribute('aria-current', 'page');
-  await user.click(mobileNav.getByRole('button', { name: 'Kod QR' }));
-  const qr = within(screen.getByRole('dialog', { name: 'Otwórz demo na telefonie' }));
-  expect(qr.getByRole('img')).toHaveAttribute(
-    'src',
-    import.meta.env.BASE_URL + 'media/demo-qr.png',
+  expect(screen.queryByRole('link', { name: /Zadzwoń/ })).not.toBeInTheDocument();
+  act(() => options().onStartGuidance?.(selected));
+  expect(screen.getByRole('link', { name: /Zadzwoń/ })).toHaveAttribute('href', 'tel:112');
+  await user.click(screen.getByRole('button', { name: 'Anuluj' }));
+  expect(screen.queryByRole('link', { name: /Zadzwoń/ })).not.toBeInTheDocument();
+  act(() => options().onOpenAR?.(selected));
+  expect(await screen.findByRole('region', { name: 'Aparat na żywo' })).toBeVisible();
+  expect(requestArCompass).toHaveBeenCalledOnce();
+  expect(ArGuide).toHaveBeenLastCalledWith(
+    expect.objectContaining({ target: selected.target, path: selected.path }),
+    undefined,
   );
-  expect(qr.getByRole('link')).toHaveAttribute('href', 'https://pawelkonior.github.io/misja-aed/');
-  await user.click(qr.getByRole('button', { name: 'Zamknij okno' }));
-  await user.click(mobileNav.getByRole('link', { name: 'Więcej' }));
-  expect(await heading('O projekcie')).toBeVisible();
+  expect(setActive).toHaveBeenLastCalledWith(false);
+  await user.click(screen.getByRole('button', { name: 'Instrukcja AED' }));
+  await user.click(await screen.findByRole('button', { name: 'Powrót z instrukcji' }));
+  await waitFor(() => expect(setActive).toHaveBeenLastCalledWith(true));
+  expect(mountAedMap).toHaveBeenCalledOnce();
+});
+it('lets the person access the instruction once the map reports a confirmed arrival', async () => {
+  window.history.replaceState(null, '', '/#mapa');
+  render(<App />);
+  act(() => options().onArrive?.(selected));
+  expect(await screen.findByRole('button', { name: 'Powrót z instrukcji' })).toBeVisible();
+});
+it('opens explicitly chosen footage without an emergency prompt or requesting camera permission', async () => {
+  window.history.replaceState(null, '', '/#mapa');
+  render(<App />);
+  act(() => options().onOpenRecording?.());
+  expect(await screen.findByRole('region', { name: 'Nagranie przejścia' })).toBeVisible();
+  expect(requestArCompass).not.toHaveBeenCalled();
+  expect(screen.queryByRole('link', { name: /Zadzwoń/ })).not.toBeInTheDocument();
+});
+it('opens data and attribution links directly without running GPS', async () => {
+  window.history.replaceState(null, '', '/#projekt');
+  const user = userEvent.setup();
+  render(<App />);
   await user.click(screen.getByRole('link', { name: 'Otwórz zbiór danych AED' }));
-  expect(await heading('Otwarte dane')).toBeVisible();
-  await user.click(mobileNav.getByRole('link', { name: 'Dokumenty' }));
-  expect(await heading('Dokumenty')).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Otwarte dane' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'GeoJSON' })).toHaveAttribute('download');
+  expect(mountAedMap).not.toHaveBeenCalled();
+});
+
+it('opens the wallet tabs, shares the service by QR and keeps the data accessible', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole('link', { name: 'Usługi' }));
+  expect(await screen.findByRole('heading', { name: 'Usługi' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Historia pojazdu' })).toHaveAttribute(
+    'href',
+    'https://info.mobywatel.gov.pl/uslugi/historia-pojazdu',
+  );
+  await user.click(screen.getByRole('button', { name: 'Kod QR' }));
+  expect(screen.getByRole('img', { name: 'Kod QR usługi AED' })).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Zamknij okno' }));
+  await user.click(screen.getByRole('link', { name: 'Więcej' }));
+  await user.click(await screen.findByRole('link', { name: 'Otwarte dane o AED' }));
+  expect(await screen.findByRole('heading', { name: 'Otwarte dane' })).toBeVisible();
 });

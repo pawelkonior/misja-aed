@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ArGuide, AedInstructions } from './Rescue';
+import { requestArCompass } from './ArGuide';
 import { steps } from './steps';
 
 const target = {
@@ -36,9 +37,8 @@ function tilt(alpha: number, beta = 90, absolute = true) {
     window.dispatchEvent(event('deviceorientation', { alpha, beta, gamma: 0, absolute }));
   });
 }
-async function activate() {
+async function settle() {
   await act(async () => {
-    click('Włącz kamerę i czujniki');
     await Promise.resolve();
   });
 }
@@ -178,7 +178,7 @@ describe('animated AED guide and speech', () => {
     click('Krok 5. Wznów uciskanie');
     click('Wróć do mapy');
     expect(actions.onBack).toHaveBeenCalled();
-    expect(screen.getByRole('link', { name: '112' })).toHaveAttribute('href', 'tel:112');
+    expect(screen.queryByRole('link', { name: '112' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Czytaj kroki' })).toBeEnabled();
   });
   it('reads in Polish, suspends the mic while speaking, advances only on a complete command, and releases it', () => {
@@ -252,112 +252,155 @@ describe('animated AED guide and speech', () => {
   });
 });
 
-describe('AR and proximity', () => {
-  it('walks a simulation with no device permission prompt, selects photographs and requires explicit confirmation', () => {
+describe('live mobile AR', () => {
+  it('opens the rear camera on entry, tracks live orientation and releases all hardware on exit', async () => {
     const device = mobileBrowser();
-    render(<ArGuide target={target} origin={origin} path={[origin, target]} demo {...actions} />);
-    expect(screen.getByText(/Zdjęcie referencyjne/)).toBeVisible();
-    expect(device.getMedia).not.toHaveBeenCalled();
-    const yaw = screen.getByRole('slider');
-    fireEvent.change(yaw, { target: { value: 80 } });
-    expect(screen.getByText('Obróć się w lewo')).toBeVisible();
-    fireEvent.change(yaw, { target: { value: -80 } });
-    expect(screen.getByText('Obróć się w prawo')).toBeVisible();
-    click('Symuluj dojście');
-    click('Zatrzymaj marsz');
-    click('Symuluj dojście');
-    void act(() => vi.advanceTimersByTime(11000));
-    expect(screen.getByText('W pobliżu AED')).toBeVisible();
-    expect(screen.getByText(/Zdjęcie urządzenia/)).toBeVisible();
-    expect(actions.onArrive).not.toHaveBeenCalled();
-    click('Mam AED · otwórz instrukcję');
-    expect(actions.onArrive).toHaveBeenCalledOnce();
-  });
-  it('resumes guidance at the current segment when entering AR midway through a route', () => {
-    const west = { lat: 52, lon: 20.998 },
-      turn = { lat: 52, lon: 21 },
-      current = { lat: 52.001, lon: 21 };
-    const end = { lat: 52.002, lon: 21, name: 'Koniec' };
-    render(<ArGuide target={end} origin={current} path={[west, turn, end]} demo {...actions} />);
-    expect(screen.getByText('0° N')).toBeVisible();
-    expect(screen.getByText('111 m trasy')).toBeVisible();
-    expect(screen.getByText(/Ilustracja poglądowa/)).toBeVisible();
-  });
-  it('projects live orientation and stops all camera, GPS and compass listeners on exit', async () => {
-    const device = mobileBrowser(),
-      ui = render(
-        <ArGuide
-          target={target}
-          origin={origin}
-          path={[origin, target]}
-          demo={false}
-          {...actions}
-        />,
-      );
-    await activate();
+    void requestArCompass();
+    const ui = render(
+      <ArGuide target={target} origin={target} path={[origin, target]} {...actions} />,
+    );
+    await settle();
     expect(device.permission).toHaveBeenCalledWith(true);
-    expect(device.getMedia).toHaveBeenCalledWith(expect.objectContaining({ audio: false }));
-    expect(screen.getByText('Kamera na żywo')).toBeVisible();
+    expect(device.getMedia).toHaveBeenCalledWith({
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    });
+    expect(screen.getByText('Aparat na żywo')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Instrukcja AED' })).toBeNull();
     device.fix(origin, 100);
     expect(screen.getByText(/Dokładność GPS jest za niska/)).toBeVisible();
     device.fix();
     tilt(0, 90, false);
-    expect(screen.getByText(/Oczekiwanie na zgodny kompas/)).toBeVisible();
+    expect(screen.getByText(/Oczekiwanie na kompas/)).toBeVisible();
     tilt(0);
-    expect(screen.getByText('Kierunek trasy')).toBeVisible();
+    tilt(0);
+    expect(screen.getByText('Idź prosto')).toBeVisible();
+    tilt(270);
+    expect(screen.getByText('Obróć się w lewo')).toBeVisible();
     tilt(90);
     expect(screen.getByText('Obróć się w prawo')).toBeVisible();
     tilt(0, 58);
-    expect(screen.getByText('Skieruj kamerę na wprost')).toBeVisible();
+    expect(screen.getByText('Skieruj aparat na wprost')).toBeVisible();
+    tilt(0, 0);
+    expect(screen.getByText(/Oczekiwanie na kompas/)).toBeVisible();
     void act(() => vi.advanceTimersByTime(16000));
     expect(screen.getByText(/Oczekiwanie na aktualną pozycję GPS/)).toBeVisible();
     device.lose(1);
-    expect(screen.getByText(/Brak zgody na lokalizację/)).toBeVisible();
+    expect(screen.getByText('Brak zgody na lokalizację.')).toBeVisible();
     device.lose(2);
-    expect(screen.getByText(/Brak aktualnego sygnału GPS/)).toBeVisible();
+    expect(screen.getByText('Brak aktualnego sygnału GPS.')).toBeVisible();
+    device.fix({ lat: target.lat - 0.00022, lon: target.lon });
+    tilt(0);
+    expect(screen.getByText('Szukaj oznaczenia AED')).toBeVisible();
+    expect(screen.getByLabelText('Przybliżony kierunek AED')).toBeVisible();
     device.fix(target, 50);
-    expect(screen.queryByText('W pobliżu AED')).toBeNull();
+    expect(screen.queryByText('AED w pobliżu')).toBeNull();
     device.fix(target, 5);
-    expect(screen.getByText('W pobliżu AED')).toBeVisible();
+    expect(screen.getByText('AED w pobliżu')).toBeVisible();
     expect(actions.onArrive).not.toHaveBeenCalled();
+    click('Instrukcja AED');
+    expect(actions.onArrive).toHaveBeenCalledOnce();
     void act(() => device.track.dispatchEvent(event('ended')));
-    expect(screen.queryByText('Kamera na żywo')).toBeNull();
+    expect(screen.queryByText('Aparat na żywo')).toBeNull();
     ui.unmount();
     expect(device.stop).toHaveBeenCalledOnce();
     expect(device.clear).toHaveBeenCalledWith(22);
   });
-  it('offers the map and manual guide when camera or orientation permission fails', async () => {
+
+  it('points along a walking route and removes directional overlays when off route or GPS expires', async () => {
+    const west = { lat: 52, lon: 20.998 },
+      turn = { lat: 52, lon: 21 };
+    const end = { lat: 52.002, lon: 21, name: 'Koniec' };
     const device = mobileBrowser();
-    device.getMedia.mockRejectedValueOnce(new Error('denied'));
-    device.permission.mockRejectedValueOnce(new Error('denied'));
-    render(<ArGuide target={target} demo={false} {...actions} />);
-    await activate();
+    render(<ArGuide target={end} path={[west, turn, end]} {...actions} />);
+    await settle();
+    tilt(0);
+    device.fix({ lat: 52.001, lon: 21 });
+    expect(screen.getByText('111 m')).toBeVisible();
+    expect(screen.getByText('Do celu')).toBeVisible();
+    expect(screen.getByText('Idź prosto')).toBeVisible();
+    device.fix({ lat: 52.001, lon: 21.005 });
+    expect(screen.getByText('Wróć do trasy')).toBeVisible();
+    expect(document.querySelector('.ar-guideline')).toBeNull();
+  });
+
+  it('calculates meters to the next turn from the routing geometry and GPS fix', async () => {
+    const start = { lat: 52, lon: 21 },
+      turn = { lat: 52.001, lon: 21 };
+    const end = { lat: 52.001, lon: 21.003, name: 'Apteka' };
+    const device = mobileBrowser();
+    render(
+      <ArGuide
+        target={end}
+        path={[start, turn, end]}
+        steps={[
+          { name: '', distance: 112, maneuver: { type: 'depart', location: [21, 52] } },
+          {
+            name: 'Chmielna',
+            distance: 210,
+            maneuver: { type: 'turn', modifier: 'right', location: [21, 52.001] },
+          },
+          { name: '', distance: 0, maneuver: { type: 'arrive', location: [21.003, 52.001] } },
+        ]}
+        {...actions}
+      />,
+    );
+    await settle();
+    tilt(0);
+    device.fix({ lat: 52.0004, lon: 21 });
+    expect(screen.getByText('Skręć w prawo')).toBeVisible();
+    expect(screen.getByText('67 m')).toBeVisible();
+    device.fix({ lat: 52.00093, lon: 21 });
+    expect(screen.getByText('8 m')).toBeVisible();
+    device.fix({ lat: 52.001, lon: 21.0002 });
+    expect(screen.getByText('Poszukaj oznaczenia AED')).toBeVisible();
+  });
+  it('retries permissions from a gesture and offers a route recording even with camera access denied', async () => {
+    const device = mobileBrowser();
+    device.permission.mockRejectedValueOnce(new Error('blocked'));
+    device.getMedia.mockRejectedValueOnce(new Error('blocked'));
+    void requestArCompass();
+    render(<ArGuide target={target} {...actions} />);
+    await settle();
     device.fix();
-    expect(screen.getByText(/Brak obrazu/)).toBeVisible();
+    expect(screen.getByText(/Sprawdź dostęp do aparatu/)).toBeVisible();
     expect(screen.getByText(/Brak dostępu do kompasu/)).toBeVisible();
-    click('Pokaż mapę');
+    expect(screen.getByRole('button', { name: /Nagranie/ })).toBeVisible();
+    click('Włącz kompas');
+    await settle();
+    expect(screen.getByText('Aparat na żywo')).toBeVisible();
+    device.fix();
+    tilt(0);
+    expect(screen.getByText('Kierunek do AED')).toBeVisible();
+    click('Wróć do mapy');
     expect(actions.onBack).toHaveBeenCalled();
-    click('Mam już AED');
-    expect(actions.onArrive).toHaveBeenCalled();
   });
-  it('rejects a selfie camera so that an inverse camera image cannot show a false bearing', async () => {
+
+  it('rejects a front camera and can retry a disconnected stream', async () => {
     const device = mobileBrowser('user');
-    const view = render(<ArGuide target={target} demo={false} {...actions} />);
-    await activate();
-    expect(screen.getByText('Nawigacja AR wymaga tylnej kamery.')).toBeVisible();
+    const view = render(<ArGuide target={target} {...actions} />);
+    await settle();
+    expect(screen.getByText('Nawigacja AR wymaga tylnego aparatu.')).toBeVisible();
     expect(device.stop).toHaveBeenCalledOnce();
-    expect(screen.queryByText('Kamera na żywo')).toBeNull();
+    click('Spróbuj ponownie');
+    await settle();
     view.unmount();
-    expect(device.stop).toHaveBeenCalledOnce();
+    expect(device.stop).toHaveBeenCalledTimes(2);
   });
-  it('handles missing sensor APIs and cancels a camera permission which resolves after navigation', async () => {
+
+  it('handles missing APIs and stops late camera permission results after navigation', async () => {
     property(navigator, 'mediaDevices', undefined);
     property(navigator, 'geolocation', undefined);
-    const initial = render(<ArGuide target={target} demo={false} {...actions} />);
-    await activate();
+    void requestArCompass();
+    const before = render(<ArGuide target={target} {...actions} />);
+    await settle();
     expect(screen.getByText(/Ta przeglądarka nie udostępnia lokalizacji/)).toBeVisible();
-    expect(screen.getByText(/Kamera wymaga połączenia HTTPS/)).toBeVisible();
-    initial.unmount();
+    expect(screen.getByText(/HTTPS lub localhost/)).toBeVisible();
+    before.unmount();
     let release: (() => void) | undefined;
     const stop = vi.fn<() => void>();
     property(navigator, 'mediaDevices', {
@@ -366,13 +409,135 @@ describe('AR and proximity', () => {
           release = () => resolve({ getTracks: () => [{ stop }] });
         }),
     });
-    const late = render(<ArGuide target={target} demo={false} {...actions} />);
-    await activate();
+    const late = render(<ArGuide target={target} {...actions} />);
+    await settle();
     late.unmount();
     await act(async () => {
       release?.();
       await Promise.resolve();
     });
     expect(stop).toHaveBeenCalledOnce();
+  });
+  it('stops the camera while the document is hidden and resumes when the user returns', async () => {
+    const device = mobileBrowser();
+    const hidden = vi.spyOn(document, 'hidden', 'get');
+    render(<ArGuide target={target} {...actions} />);
+    await settle();
+    hidden.mockReturnValue(true);
+    act(() => {
+      document.dispatchEvent(event('visibilitychange'));
+    });
+    expect(device.stop).toHaveBeenCalledOnce();
+    hidden.mockReturnValue(false);
+    act(() => {
+      document.dispatchEvent(event('visibilitychange'));
+    });
+    await settle();
+    expect(device.getMedia).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('recorded street walk', () => {
+  const walk = {
+    title: 'Chmielna',
+    destination: 'Chmielna 21',
+    attribution: 'Nagranie ulicy',
+    sourceUrl: 'https://example.org/walk',
+    cues: [
+      {
+        start: 0,
+        direction: 'straight',
+        text: 'Idź prosto',
+        maneuver: 'Następny skręt',
+        meters: 18,
+        nextMeters: 9,
+        upcomingDirection: 'left',
+      },
+      {
+        start: 3,
+        direction: 'left',
+        text: 'Skręć w lewo',
+        maneuver: 'Następny skręt',
+        meters: 9,
+        nextMeters: 3,
+        upcomingDirection: 'left',
+      },
+      {
+        start: 6,
+        direction: 'right',
+        text: 'Skręć w prawo',
+        maneuver: 'Następny skręt',
+        meters: 4,
+        nextMeters: 0,
+        upcomingDirection: 'right',
+      },
+      {
+        start: 9,
+        direction: 'arrived',
+        text: 'Odszukaj szafkę AED',
+        maneuver: 'Cel',
+        meters: 0,
+        nextMeters: 0,
+        upcomingDirection: 'arrived',
+      },
+    ],
+  };
+  it('switches off live camera and links cues and arrival to actual media playback', async () => {
+    const device = mobileBrowser();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(walk))),
+    );
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    const ui = render(<ArGuide target={target} {...actions} />);
+    await settle();
+    click('Nagranie · Chmielna 21');
+    await settle();
+    expect(device.stop).toHaveBeenCalledOnce();
+    expect(device.clear).toHaveBeenCalled();
+    expect(screen.getByText('Idź prosto')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Nagranie ulicy' })).toHaveAttribute(
+      'href',
+      walk.sourceUrl,
+    );
+    const video = screen.getByLabelText<HTMLVideoElement>('Film przejścia do AED');
+    fireEvent.play(video);
+    click('Zatrzymaj nagranie');
+    expect(pause).toHaveBeenCalledOnce();
+    fireEvent.pause(video);
+    click('Wznów nagranie');
+    fireEvent.play(video);
+    fireEvent.timeUpdate(video, { target: { currentTime: 4 } });
+    expect(screen.getByText('Skręć w lewo')).toBeVisible();
+    expect(screen.getByText('7 m')).toBeVisible();
+    expect(screen.getByText('Następny skręt')).toBeVisible();
+    expect(document.querySelectorAll('.ar-road-tile')).toHaveLength(5);
+    fireEvent.timeUpdate(video, { target: { currentTime: 8 } });
+    expect(screen.getByText('Skręć w prawo')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Instrukcja AED' })).toBeNull();
+    fireEvent.timeUpdate(video, { target: { currentTime: 9 } });
+    expect(screen.getByText('Odszukaj szafkę AED')).toBeVisible();
+    expect(actions.onArrive).not.toHaveBeenCalled();
+    click('Instrukcja AED');
+    expect(actions.onArrive).toHaveBeenCalledOnce();
+    fireEvent.ended(video);
+    click('Odtwórz ponownie');
+    expect(video.currentTime).toBe(0);
+    ui.unmount();
+    expect(pause).toHaveBeenCalledTimes(2);
+  });
+  it('can open the recording without GPS or an AED selection and reports a failed media load', async () => {
+    const device = mobileBrowser();
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 404 })),
+    );
+    render(<ArGuide target={null} {...actions} />);
+    await settle();
+    expect(device.getMedia).not.toHaveBeenCalled();
+    expect(screen.getByText('Nagranie niedostępne')).toBeVisible();
+    fireEvent.error(screen.getByLabelText('Film przejścia do AED'));
+    expect(screen.queryByRole('button', { name: 'Instrukcja AED' })).toBeNull();
   });
 });

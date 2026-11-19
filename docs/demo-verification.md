@@ -5,7 +5,9 @@ Weryfikacja z 19 listopada 2026 r. obejmowała produkcyjny build i prawdziwe prz
 | Sprawdzenie | Wynik |
 | --- | --- |
 | TypeScript, Oxlint, Prettier, testy jednostkowe i build | Pełne polecenie `npm run check` przeszło. |
-| Interfejs | 16 scenariuszy Playwright przeszło w Chromium, Firefox, WebKit i mobilnym Chromium. Sprawdzono trasę, przejście do instrukcji, zakładki, QR i kontrast pulpitu przez axe. |
+| Interfejs | Scenariusze Playwright obejmują pulpit portfela, odmowę udostępnienia lokalizacji, trasę z GPS, wskazówki piesze, wejście do AR, powiadomienie z możliwością anulowania, dojście do AED, nagranie przejścia i pobranie danych. Mobilny viewport zajmuje cały ekran, a podgląd z myszą ma pomarańczową obudowę telefonu. |
+| Odliczanie do połączenia | Zegar testowy i zastępcza obsługa telefonu potwierdzają jedno otwarcie po 10 s. Anulowanie w ostatniej sekundzie lub opuszczenie trasy zatrzymuje wywołanie. W produkcji odbiorcą jest systemowa aplikacja telefoniczna przez `tel:112`. Współrzędne są wyświetlane do przekazania operatorowi. W tym przebiegu testów nie dzwoniono pod prawdziwy numer. |
+| Nagranie w aplikacji | Pionowy film 720 × 1280 trwa 25,2 s. Przez 16 s pokazuje rzeczywiste podejście do bramy. W 22. sekundzie pojawiają się zdjęcie szafki i przycisk instrukcji. Licznik w nagraniu wykorzystuje orientacyjne odległości. Kamera na żywo wylicza odległości z GPS i trasy pieszej. |
 | Rzeczywiste wejście mikrofonowe | Chromium podało polski plik WAV przez wirtualny mikrofon. Silnik Vosk rozpoznał słowo „dalej”; aplikacja przeszła z kroku o elektrodach do kroku o odsunięciu się. Po wyłączeniu mikrofonu powtórzenie komendy pozostawiło ten sam krok. |
 | Zbiór | Jedna wspólna lista 18 272 obiektów; z niej wyprowadzono GeoJSON i CSV. XML porównano z oficjalnym XSD 1.13, a MD5 z treścią pliku XML. |
 | Film | H.264, 1920 × 1080, 1800 klatek przy 30 kl./s; 60 sekund z polską ścieżką AAC, w tym ta sama próbka komendy, którą rozpoznała aplikacja podczas nagrania. |

@@ -10,9 +10,13 @@ Film korzysta z technologii poprzedniego projektu „Zbuduj prototyp Risk Red Te
 ## Pochodzenie materiałów
 
 - Zdjęcie produktowe na okładkę powstało we wbudowanym ImageGen. [Obraz](../web/public/media/hero.webp)
-- Drugie ujęcie ImageGen jest ilustracją ulicy na potrzeby symulacji, gdy brak właściwego ujęcia. Warszawska trasa ma własne prawdziwe zdjęcia. [Ilustracja](../web/public/media/approach.webp) · [Atrybucja zdjęć rzeczywistych](open-data.md)
-- Znak mObywatel pochodzi z publicznego serwisu informacyjnego. Karty dokumentów mają charakter przykładowy. [Źródło znaku](https://info.mobywatel.gov.pl/apple-touch-icon.png)
+- Drugie ujęcie ImageGen było ilustracją ulicy we wcześniejszej wersji demonstratora. Obecny widok AR korzysta z aparatu telefonu lub nagrania przejścia opisanego poniżej. [Ilustracja](../web/public/media/approach.webp) · [Atrybucja zdjęć rzeczywistych](open-data.md)
+- Znak mObywatel pochodzi z publicznego serwisu informacyjnego. [Źródło znaku](https://info.mobywatel.gov.pl/apple-touch-icon.png)
 - Renderer filmu bazuje na harnessie code-animations na warunkach MIT. [Licencja](../film/harness/LICENSE)
+
+## Nagranie ulicy w mobilnym widoku AR
+
+Nagranie „Przejście ulicą Chmielną” ma 25,2 s i format pionowy 720 × 1280. Pierwsze 16 s obejmuje 21 s rzeczywistego spaceru, przyspieszonego 1,3125×. Kamera rzeczywiście zbliża się od zachodu do bramy pod numerem 21. To fragment spaceru POPtravel z października 2019 r., udostępnionego na CC BY 3.0. Trzy kolejne ujęcia to fotografie drzwi, pasażu i szafki z AED. Metry do skrętu w nagraniu oszacowano na podstawie czasu marszu i położenia bramy w kadrze. Dystanse przy fotografiach są zaokrąglonymi odległościami między geotagami a lokalizacją szafki w OpenAEDMap. Współrzędne GPS telefonu i zegar nagrania są niezależne. [Film źródłowy](https://commons.wikimedia.org/wiki/File:Walking_in_WARSAW_-_Poland_-_4K_60fps_(UHD).webm) · [Autorzy, licencje i montaż](../web/public/media/aed-walk-credits.txt) · [Czasy wskazówek](../web/public/media/aed-walk.json)
 
 ## Prompty ImageGen
 

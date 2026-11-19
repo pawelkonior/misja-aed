@@ -29,24 +29,29 @@ export interface RouteState {
 export interface NavigationPayload {
   target: AedTarget;
   position: GeoPoint;
-  mode: 'demo' | 'live';
+  mode: 'manual' | 'live';
   route: RouteState | null;
   path: GeoPoint[];
 }
 export interface MapOptions {
-  initialMode?: 'demo' | 'live';
+  active?: boolean;
+  onStartGuidance?: (state: NavigationPayload) => void;
+  onOpenRecording?: () => void;
+  onEndGuidance?: () => void;
   onBack?: () => void;
   onNavigate?: (state: NavigationPayload) => void;
   onOpenAR?: (state: NavigationPayload) => void;
   onArrive?: (state: NavigationPayload) => void;
 }
 export interface MapSession {
-  getState(): Omit<NavigationPayload, 'target'> & {
+  getState(): Omit<NavigationPayload, 'target' | 'position'> & {
     target: AedTarget | null;
+    position: GeoPoint | null;
     view: string;
     nearest: { target: AedTarget; meters: number }[];
     usedFallback: boolean;
   };
+  setActive(active: boolean): void;
   destroy(): void;
 }
 

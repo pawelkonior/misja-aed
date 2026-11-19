@@ -4,15 +4,16 @@
 
 Prototyp usługi mObywatel na [wyzwanie HackNation 2026](https://hacknation.pl/zadania) Departamentu Zarządzania Danymi Ministerstwa Cyfryzacji. Łączy istniejące źródła o AED w otwarty zbiór dla Polski. Na telefonie przeprowadza drugiego świadka zdarzenia od wyszukania urządzenia do instrukcji po przyniesieniu go do poszkodowanego.
 
-## Pokaz
+## Aplikacja mobilna
 
-1. Z ekranu głównego wybierz **Otwórz mapę AED**. Scenariusz demonstracyjny zaczyna się przy ul. Widok w Warszawie. Na mapie przycisk **Moja lokalizacja** uruchamia rzeczywisty GPS.
-2. Wybierz **Dom towarowy Bracia Jabłkowscy**, obejrzyj zdjęcia wejścia, pasażu i urządzenia, następnie wybierz **Wyznacz trasę pieszą**. Od startu demonstracyjnego to 291 m i około 4 minut.
-3. **Prowadź w AR** pokazuje następny odcinek trasy. W trybie demonstracyjnym **Symuluj dojście** przesuwa pozycję po trasie. W trybie lokalizacji telefonu przycisk **Włącz kamerę i czujniki** uruchamia obraz i kompas.
-4. Po wykryciu bliskości aplikacja prosi o odszukanie urządzenia. Potwierdź jego przejęcie. Instrukcja dla dorosłych zawiera 5 animowanych kroków, polskiego lektora oraz komendę **„dalej”** na zgodnych przeglądarkach. W „O instrukcji i obsłudze głosowej” można wybrać rozpoznawanie w urządzeniu. Pierwsze uruchomienie tego trybu pobiera polski model Vosk (około 50 MB).
-5. W widoku **Otwarte dane** pobierz zbiór i metadane.
+1. Na pulpicie mObywatela, poniżej kart dokumentów, dotknij **Defibrylator w pobliżu**. Pozwól przeglądarce pobrać lokalizację. Mapa oznaczy aktualną pozycję i pokaże najbliższe AED. Jeśli GPS jest niedostępny, wybierz adres lub wskaż punkt startowy na mapie.
+2. Dotknij urządzenia, żeby od razu wyznaczyć trasę pieszą. **Wskazówki dojścia** pokazują kolejne odcinki i dostępne zdjęcia. Wybierz **Prowadź** albo od razu **Tryb AR**, aby rozpocząć prowadzenie.
+3. Po wybraniu prowadzenia z wezwaniem pomocy aplikacja odlicza 10 sekund i automatycznie otwiera systemowy numer alarmowy. **Anuluj** zatrzymuje odliczanie i pozwala kontynuować trasę. System telefonu może wymagać potwierdzenia. Gdy przeglądarka blokuje otwarcie telefonu, przycisk **Zadzwoń** pozwala wykonać tę czynność ręcznie. Aplikacja wyświetla pozycję GPS do podania operatorowi. Zgłoszenie przyjmuje operator podczas rozmowy.
+4. **Tryb AR** korzysta z aparatu telefonu, GPS i kompasu. Po dotarciu w pobliże wybranego urządzenia pojawia się przycisk **Instrukcja AED**. Dokładność położenia w budynkach zależy od czujników.
+5. [Nagranie przejścia ulicą Chmielną](https://pawelkonior.github.io/misja-aed/#nagranie) pozwala prześledzić drogę bez włączania aparatu. Animowane strzałki 3D wskazują kierunek. Licznik pokazuje orientacyjne metry do następnego manewru. Ostatnie ujęcia pokazują wejście, pasaż i szafkę AED.
+6. Instrukcja dla osoby dorosłej ma pięć animowanych kroków, polskiego lektora i komendę głosową „dalej”. Rozpoznawanie na urządzeniu wymaga jednorazowego pobrania polskiego modelu Vosk (około 50 MB).
 
-W sytuacji zagrożenia życia dzwoń na 112 lub 999 i słuchaj dyspozytora. Pojedynczy świadek powinien pozostać przy poszkodowanym. Dokładność AR zależy od GPS, kompasu i ułożenia telefonu; znacznik oznacza przewidywany kierunek, a fizyczne odnalezienie urządzenia potwierdza użytkownik. [Źródła medyczne i research](docs/research.md)
+Z usługi szukania AED może skorzystać drugi świadek zdarzenia. Pojedynczy świadek powinien pozostać przy poszkodowanym i wykonywać polecenia dyspozytora. [Źródła medyczne i research](docs/research.md)
 
 ## Otwarte dane
 

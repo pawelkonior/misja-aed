@@ -4,8 +4,6 @@ import './map.css';
 import {
   accessLabel,
   asset,
-  DEMO_POSITION,
-  DEMO_TARGET,
   distance,
   loadPoints,
   loadApproachPhotos,
@@ -13,6 +11,7 @@ import {
   nearby,
   routePhotos,
   routeProgress,
+  searchStartLocations,
   stepText,
   walkingRoute,
 } from './core';
@@ -41,6 +40,8 @@ const icons = {
   check: '<path d="m4 13 5 5L20 6"/>',
   plus: '<path d="M5 12h14M12 5v14"/>',
   minus: '<path d="M5 12h14"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/>',
+  play: '<path d="m8 5 11 7-11 7z"/>',
 };
 const svg = (name: keyof typeof icons, size = 19) =>
   '<svg aria-hidden="true" viewBox="0 0 24 24" width="' +
@@ -96,49 +97,57 @@ const accessTag = (t: AedTarget) =>
   accessLabel(t) +
   '</span>';
 export function mountAedMap(container: HTMLElement, options: MapOptions = {}): MapSession {
-  let points: AedTarget[] = [DEMO_TARGET],
-    position: GeoPoint = { ...DEMO_POSITION },
-    mode: 'demo' | 'live' = 'demo',
-    selected: AedTarget | null = null,
-    filter = 'all',
-    listLimit = 4,
-    view = 'list';
-  let route: RouteState | null = null,
-    notice = '',
-    waiting = '',
-    watch: number | null = null,
-    controller: AbortController | null = null,
-    destroyed = false,
-    usedFallback = false,
-    photoIndex = 0;
-  let routeLine: L.Polyline | null = null,
-    lastRequest = 0,
-    driftCount = 0,
-    gpsTicket = 0,
-    lastListAt: GeoPoint | null = null,
-    arrived = false;
-  let nearest = nearby(points, position, filter);
+  let points: AedTarget[] = [];
+  let nearest: ReturnType<typeof nearby> = [];
+  let position: GeoPoint | null = null;
+  let origin: NavigationPayload['mode'] = 'live';
+  let selected: AedTarget | null = null;
+  let route: RouteState | null = null;
+  let view: 'list' | 'picker' | 'destination' | 'directions' = 'list';
+  let active = options.active ?? true;
+  let destroyed = false;
+  let guiding = false;
+  let gpsStatus: 'waiting' | 'ready' | 'error' = 'waiting';
+  let locationNotice = '';
+  let catalogueError = false;
+  let loadingData = false;
+  let routeError = false;
+  let request: AbortController | null = null;
+  let searchRequest: AbortController | null = null;
+  let lastRequest = 0;
+  let driftCount = 0;
+  let arrived = false;
+  let lastListAt: GeoPoint | null = null;
+  let photoIndex = 0;
+  let listLimit = 8;
+  let watch: number | null = null;
+  let gpsTicket = 0;
+  let pickerConfirmed = false;
+  let searchResults: Awaited<ReturnType<typeof searchStartLocations>> = [];
+  let routeLine: L.Polyline | null = null;
+  let userMarker: L.Marker | null = null;
+
   container.innerHTML =
-    '<section class="am-root"><div class="am-head"><button type="button" class="am-back" data-act="back" aria-label="Wstecz">' +
+    '<section class="am-root"><header class="am-head"><button type="button" class="am-back" data-act="back" aria-label="Wstecz">' +
     svg('back') +
-    '</button><h2>Znajdź AED</h2><span class="am-mode"></span></div><div class="am-mapwrap"><div class="am-map" role="region" aria-label="Mapa defibrylatorów"></div><div class="am-scale">' +
+    '</button><h1>Defibrylatory w pobliżu</h1></header><div class="am-mapwrap"><div class="am-map" role="region" aria-label="Mapa defibrylatorów"></div><div class="am-aim" hidden>' +
+    svg('pin', 34) +
+    '</div><div class="am-scale">' +
     tooltip('plus', 'Przybliż mapę') +
     tooltip('minus', 'Oddal mapę') +
-    '</div><button type="button" class="am-gps" data-act="gps">' +
-    svg('gps', 17) +
-    '<span>Moja lokalizacja</span></button></div><p class="am-help">Jesteś jedynym świadkiem? Zostań przy poszkodowanym i zadzwoń pod <a href="tel:112">112</a>. Po AED wyślij drugą osobę.</p><div class="am-notice" role="status"></div><div class="am-panel"></div></section>';
+    '</div><button type="button" class="am-gps" data-act="gps" aria-label="Moja lokalizacja" title="Moja lokalizacja">' +
+    svg('gps', 21) +
+    '</button></div><div class="am-panel"></div></section>';
   const $ = (s: string) => container.querySelector<HTMLElement>(s)!;
-  const panel = $('.am-panel'),
-    note = $('.am-notice'),
-    mapEl = $('.am-map');
+  const panel = $('.am-panel');
+  const mapEl = $('.am-map');
   const map = L.map(mapEl, {
     zoomControl: false,
     attributionControl: false,
     scrollWheelZoom: false,
     minZoom: 4,
     maxZoom: 19,
-    dragging: true,
-  }).setView([52.23195, 21.0142], 16);
+  }).setView([52.09, 19.37], 5);
   L.control
     .attribution({ prefix: false, position: 'bottomleft' })
     .addTo(map)
@@ -147,77 +156,110 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
     );
   const localMap = L.imageOverlay(asset('map-assets/srodmiescie.svg'), mapBounds, {
     className: 'am-district',
-  }).addTo(map);
+  });
   const tile = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
   const markerLayer = L.layerGroup().addTo(map);
-  const userMarker = L.marker(latlng(position), {
-    icon: personIcon,
-    keyboard: false,
-    zIndexOffset: 600,
-    title: 'Pozycja startowa',
-  }).addTo(map);
   const resize = new ResizeObserver(() => {
     if (mapEl.clientWidth > 0) map.invalidateSize({ pan: false });
   });
   resize.observe(mapEl);
   function chooseBase() {
-    const showLocal = L.latLngBounds(mapBounds).contains(map.getBounds()) && map.getZoom() >= 15;
-    if (showLocal) {
-      if (!map.hasLayer(localMap)) localMap.addTo(map);
-      if (map.hasLayer(tile)) map.removeLayer(tile);
-    } else {
-      if (!map.hasLayer(tile)) tile.addTo(map);
-      if (map.hasLayer(localMap)) map.removeLayer(localMap);
-    }
+    const local = L.latLngBounds(mapBounds).contains(map.getBounds()) && map.getZoom() >= 15;
+    const visible = local ? localMap : tile;
+    const hidden = local ? tile : localMap;
+    if (!map.hasLayer(visible)) visible.addTo(map);
+    if (map.hasLayer(hidden)) map.removeLayer(hidden);
   }
   map.on('moveend', chooseBase);
+  chooseBase();
+
   function updateMarkers() {
     markerLayer.clearLayers();
-    for (const { target } of nearest) {
-      const active = target.id === selected?.id;
-      const marker = L.marker(latlng(target), {
-        icon: aedIcon(active),
-        title: target.name,
-        alt: 'AED · ' + target.name,
-        zIndexOffset: active ? 400 : 0,
-      });
-      marker.on('click', () => selectTarget(target, true)).addTo(markerLayer);
+    if (view !== 'picker') {
+      for (const { target } of nearest) {
+        const chosen = target.id === selected?.id;
+        if (selected && !chosen) continue;
+        L.marker(latlng(target), {
+          icon: aedIcon(chosen),
+          title: target.name,
+          alt: 'AED · ' + target.name,
+          zIndexOffset: chosen ? 400 : 0,
+        })
+          .on('click', () => selectTarget(target))
+          .addTo(markerLayer);
+      }
     }
-    if (selected && !nearest.some((x) => x.target.id === selected?.id)) {
-      L.marker(latlng(selected), { icon: aedIcon(true), title: selected.name }).addTo(markerLayer);
-    }
-    userMarker.setLatLng(latlng(position));
+    if (userMarker) userMarker.remove();
+    userMarker = null;
+    if (!position || view === 'picker') return;
+    const title = origin === 'live' ? 'Twoja lokalizacja' : 'Wybrany punkt startowy';
+    userMarker = L.marker(latlng(position), {
+      icon:
+        origin === 'live'
+          ? personIcon
+          : L.divIcon({
+              className: 'am-start-pin',
+              iconSize: [19, 19],
+              iconAnchor: [9, 9],
+              html: '<span></span>',
+            }),
+      title,
+      alt: title,
+      keyboard: false,
+      zIndexOffset: 600,
+    }).addTo(map);
   }
-  function status() {
-    $('.am-mode').textContent = mode === 'demo' ? 'Warszawa · demo' : 'Pozycja GPS';
-    const current = waiting || notice;
-    note.textContent = current;
-    note.hidden = !current;
+  const recordingLink = () =>
+    options.onOpenRecording
+      ? '<button type="button" class="am-text-btn am-film" data-act="recording">' +
+        svg('play', 16) +
+        ' <span>Obejrzyj nagranie przejścia<small>Warszawa, Chmielna 21</small></span></button>'
+      : '';
+  const locationButton = (label: string) =>
+    '<button type="button" data-act="gps" class="am-primary">' +
+    svg('gps', 18) +
+    esc(label) +
+    '</button>';
+  function locationPanel() {
+    const waiting = gpsStatus === 'waiting';
+    return (
+      '<div class="am-panel-head"><h2>' +
+      (waiting ? 'Ustalam Twoją lokalizację' : 'Skąd wyruszasz?') +
+      '</h2></div>' +
+      '<p role="status" class="am-message">' +
+      esc(locationNotice || 'Zezwól na dostęp do lokalizacji, aby zobaczyć najbliższe AED.') +
+      '</p>' +
+      (waiting ? '' : locationButton('Użyj mojej lokalizacji')) +
+      '<button type="button" class="am-secondary am-full" data-act="picker">' +
+      svg('pin', 18) +
+      ' Wybierz punkt na mapie</button>' +
+      recordingLink()
+    );
   }
   function list() {
-    const filters = [
-      ['all', 'Wszystkie'],
-      ['public', 'Publiczne'],
-      ['always', 'Publiczne 24/7'],
-    ];
+    if (!position) return locationPanel();
+    const description =
+      origin === 'manual'
+        ? '<button type="button" data-act="picker" class="am-text-btn am-change">Zmień punkt startowy</button>'
+        : '';
+    if (!nearest.length) {
+      return (
+        '<h2>Najbliższe AED</h2><p class="am-message" role="status">' +
+        (catalogueError ? 'Nie udało się pobrać listy AED.' : 'Wczytuję urządzenia w okolicy…') +
+        '</p>' +
+        (catalogueError
+          ? '<button class="am-primary" data-act="catalog">Spróbuj ponownie</button>'
+          : '') +
+        description
+      );
+    }
     return (
-      '<div class="am-panel-head"><div><div class="am-overline">W TWOJEJ OKOLICY</div><h3>Najbliższe AED</h3></div><span class="am-count">' +
-      nearest.length +
-      '</span></div>' +
-      '<div class="am-filters" aria-label="Filtrowanie punktów">' +
-      filters
-        .map(
-          ([id, label]) =>
-            '<button type="button" data-act="filter" data-val="' +
-            id +
-            '" aria-pressed="' +
-            (filter === id) +
-            '">' +
-            label +
-            '</button>',
-        )
-        .join('') +
+      '<div class="am-panel-head"><h2>Najbliższe AED</h2>' +
+      (origin === 'manual' ? '<span class="am-origin">Wskazany start</span>' : '') +
       '</div>' +
+      (locationNotice
+        ? '<p class="am-message" role="status">' + esc(locationNotice) + '</p>'
+        : '') +
       '<div class="am-rows">' +
       nearest
         .slice(0, listLimit)
@@ -226,7 +268,7 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
             '<button type="button" class="am-row" data-act="select" data-val="' +
             esc(t.id) +
             '"><span class="am-rowicon">' +
-            svg('heart', 22) +
+            svg('heart', 23) +
             '</span><span class="am-rowtxt"><strong>' +
             esc(t.name) +
             '</strong>' +
@@ -240,32 +282,25 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
         .join('') +
       '</div>' +
       (nearest.length > listLimit
-        ? '<button type="button" class="am-text-btn" data-act="more">Pokaż więcej punktów ' +
+        ? '<button type="button" class="am-text-btn" data-act="more">Więcej urządzeń ' +
           svg('chevron', 14) +
           '</button>'
         : '') +
-      '<p class="am-foot">Odległości w linii prostej. ' +
-      (mode === 'demo'
-        ? 'Start pokazu przy ul. Widok.'
-        : 'Kolejność według ostatniego odczytu GPS.') +
-      '</p>' +
-      (mode === 'live'
-        ? '<button type="button" class="am-text-btn" data-act="demo">Pokaż trasę demonstracyjną</button>'
-        : '')
+      description
     );
   }
   function targetPhoto() {
-    const photos = routePhotos(selected!, position, position.heading);
+    if (!selected || !position) return '';
+    const photos = routePhotos(selected, position, position.heading);
     if (!photos.length) return '';
-    const index = Math.min(photoIndex, photos.length - 1),
-      p = photos[index]!;
+    const index = Math.min(photoIndex, photos.length - 1);
+    const p = photos[index]!;
     return (
       '<figure class="am-photo"><img src="' +
       esc(p.src) +
       '" alt="' +
       esc(p.label) +
       '" loading="lazy"><figcaption><span>' +
-      svg('photo', 14) +
       esc(p.label) +
       '</span><small><a href="' +
       esc(p.url) +
@@ -275,7 +310,7 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
       (photos.length > 1
         ? '<button type="button" data-act="photo" class="am-next-photo" aria-label="Następne zdjęcie">' +
           (index + 1) +
-          '/' +
+          ' / ' +
           photos.length +
           ' ' +
           svg('chevron', 14) +
@@ -284,360 +319,538 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
       '</figure>'
     );
   }
-  function details() {
-    const t = selected!;
+  function routeActions() {
+    if (arrived)
+      return (
+        '<button type="button" class="am-primary" data-act="arrive">' +
+        svg('heart') +
+        ' Instrukcja AED</button>'
+      );
+    if (!route) {
+      return routeError
+        ? '<p class="am-message" role="status">Nie udało się wyznaczyć trasy pieszej.</p><button type="button" class="am-secondary am-full" data-act="retry">Ponów wyznaczanie trasy</button>'
+        : '<p class="am-message" role="status">Wyznaczam trasę pieszą…</p>';
+    }
+    const hintId = 'am-call-note';
+    const arAction =
+      '<button type="button" class="am-primary" data-act="ar"' +
+      (guiding ? '' : ' aria-describedby="' + hintId + '"') +
+      '>' +
+      svg('cam', 18) +
+      (guiding ? ' Tryb AR' : '<span>Tryb AR<small>z wezwaniem pomocy</small></span>') +
+      '</button>';
+    if (guiding && view === 'directions') return arAction;
+    const walking = view === 'directions';
+    const hint = guiding
+      ? ''
+      : '<p id="' +
+        hintId +
+        '" class="am-call-note">' +
+        (walking ? 'Po wybraniu „Prowadź i wezwij pomoc”' : 'Po włączeniu trybu AR') +
+        ' masz 10 sekund na anulowanie. Potem otworzy się telefon z numerem alarmowym.</p>';
     return (
-      '<button type="button" class="am-return" data-act="list">' +
-      svg('back', 14) +
-      ' Lista urządzeń</button><div class="am-panel-head"><div><div class="am-overline">WYBRANY DEFIBRYLATOR</div><h3>' +
-      esc(t.name) +
-      '</h3></div><span class="am-bigheart">' +
-      svg('heart', 27) +
-      '</span></div>' +
-      '<div class="am-badges">' +
-      accessTag(t) +
-      '<span>' +
-      meters(distance(position, t)) +
-      ' w linii prostej</span></div>' +
-      '<p class="am-description">' +
-      esc(t.description) +
-      '</p>' +
-      (t.address ? '<p class="am-address">' + svg('pin', 15) + esc(t.address) + '</p>' : '') +
-      (t.hours
-        ? '<p class="am-foot">Godziny według źródła: ' + esc(t.hours) + '</p>'
-        : '<p class="am-foot">Brak podanych godzin dostępu.</p>') +
-      (t.access_note ? '<p class="am-foot">' + esc(t.access_note) + '</p>' : '') +
-      (!['private', 'no'].includes(t.access ?? '')
-        ? '<button type="button" class="am-primary" data-act="navigate">' +
+      hint +
+      (walking
+        ? '<button type="button" class="am-primary" data-act="guide" aria-describedby="' +
+          hintId +
+          '">' +
           svg('walk', 19) +
-          ' Wyznacz trasę pieszą ' +
-          svg('arrow', 17) +
-          '</button>'
-        : '') +
-      targetPhoto() +
-      '<a class="am-source" target="_blank" rel="noopener" href="' +
-      esc(t.source_url) +
-      '">Rekord źródłowy ↗</a>'
+          ' Prowadź i wezwij pomoc</button>'
+        : '<div class="am-actions">' +
+          arAction +
+          '<button type="button" class="am-secondary" data-act="directions">' +
+          svg('list', 18) +
+          ' Wskazówki dojścia</button></div>')
     );
   }
-  function navigation() {
+  function details() {
+    if (!selected || !position) return '';
     const progress = route && routeProgress(route, position);
-    const step = progress && route?.steps[progress.index];
-    const rem = progress?.remaining ?? 0;
-    const summary = route
-      ? meters(rem) +
-        ' · ' +
-        Math.max(1, Math.round((route.duration * rem) / Math.max(1, route.distance) / 60)) +
-        ' min'
-      : 'Bez wyznaczonej trasy';
+    const remaining = progress?.remaining ?? 0;
+    const minutes =
+      route &&
+      Math.max(1, Math.round((route.duration * remaining) / Math.max(1, route.distance) / 60));
+    const heading = arrived ? 'Jesteś przy celu' : selected.name;
+    const stepList =
+      view === 'directions' && route && progress
+        ? '<ol class="am-steps">' +
+          route.steps
+            .map(
+              (step, index) =>
+                '<li' +
+                (index === progress.index ? ' aria-current="step"' : '') +
+                '><span class="am-step-number">' +
+                (index + 1) +
+                '</span><span>' +
+                esc(stepText(step)) +
+                '</span>' +
+                (step.distance > 0 ? '<small>' + meters(step.distance) + '</small>' : '') +
+                '</li>',
+            )
+            .join('') +
+          '</ol>'
+        : '';
     return (
-      '<button type="button" class="am-return" data-act="detail">' +
-      svg('back', 14) +
-      ' Szczegóły punktu</button>' +
-      '<div class="am-panel-head"><div><div class="am-overline">' +
-      (arrived ? 'W POBLIŻU CELU' : 'TRASA PIESZA') +
-      '</div><h3>' +
-      esc(arrived ? 'Poszukaj znaku AED' : summary) +
-      '</h3></div><span class="am-route-icon">' +
-      svg(arrived ? 'check' : 'walk', 24) +
-      '</span></div>' +
-      '<div class="am-navstep">' +
-      svg(arrived ? 'heart' : 'arrow', 22) +
-      '<span><strong>' +
-      esc(
-        arrived
-          ? selected!.description
-          : route
-            ? stepText(step)
-            : 'Wyznaczenie trasy wymaga połączenia',
-      ) +
-      '</strong><small>' +
-      esc(selected!.name) +
-      '</small></span></div>' +
-      '<div class="am-actions">' +
-      (route
-        ? '<button type="button" class="am-primary" data-act="ar">' +
-          svg('cam', 18) +
-          ' Prowadź w AR</button>'
-        : '<button type="button" class="am-primary" data-act="navigate">Ponów trasę</button>') +
-      (mode === 'demo' && route && !arrived
-        ? '<button type="button" class="am-secondary" data-act="advance">Krok demo ' +
-          svg('chevron', 15) +
-          '</button>'
+      '<div class="am-panel-head"><h2>' +
+      esc(heading) +
+      '</h2></div>' +
+      (route && !arrived
+        ? '<div class="am-duration">' +
+          svg('walk', 17) +
+          '<strong>' +
+          esc(minutes ?? 1) +
+          ' min</strong><i></i>' +
+          meters(remaining) +
+          '</div>'
         : '') +
+      (selected.address
+        ? '<p class="am-address">' + svg('pin', 14) + esc(selected.address) + '</p>'
+        : '') +
+      (selected.description && selected.description !== selected.address
+        ? '<p class="am-description">' + esc(selected.description) + '</p>'
+        : '') +
+      '<div class="am-badges">' +
+      accessTag(selected) +
+      (selected.hours ? '<span>' + esc(selected.hours) + '</span>' : '') +
       '</div>' +
-      '<button type="button" class="' +
-      (arrived ? 'am-primary am-confirm' : 'am-text-btn') +
-      '" data-act="arrive">' +
-      svg('check', 16) +
-      ' Mam AED · instrukcja</button>' +
+      (locationNotice
+        ? '<p role="status" class="am-message">' + esc(locationNotice) + '</p>'
+        : '') +
+      routeActions() +
+      stepList +
       targetPhoto() +
-      '<p class="am-foot">Trasa piesza © <a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">FOSSGIS / OSRM</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Popraw mapę</a></p>'
+      (view === 'directions'
+        ? recordingLink() +
+          '<p class="am-credit">Trasa piesza · <a href="https://routing.openstreetmap.de/about.html" rel="noopener" target="_blank">FOSSGIS / OpenStreetMap</a></p>'
+        : '')
+    );
+  }
+  function picker() {
+    return (
+      '<div class="am-panel-head"><h2>Wybierz punkt startowy</h2></div>' +
+      '<form class="am-search" role="search"><input name="place" aria-label="Miejscowość lub adres" placeholder="Miejscowość lub adres" autocomplete="off" required><button type="submit" aria-label="Szukaj">' +
+      svg('search') +
+      '</button></form><div class="am-results" aria-live="polite"></div><p class="am-message">Wskaż miejsce na mapie lub przesuń znacznik na środek wybranego miejsca.</p>' +
+      '<button type="button" class="am-primary" data-act="set-origin"' +
+      (pickerConfirmed ? '' : ' disabled') +
+      '>Rozpocznij stąd ' +
+      svg('arrow', 16) +
+      '</button>'
     );
   }
   function render() {
-    status();
-    panel.innerHTML = view === 'list' ? list() : view === 'detail' ? details() : navigation();
+    $('.am-head h1').textContent =
+      view === 'picker'
+        ? 'Punkt startowy'
+        : view === 'directions'
+          ? 'Wskazówki dojścia'
+          : 'Defibrylatory w pobliżu';
+    $('.am-aim').hidden = view !== 'picker';
+    panel.innerHTML = view === 'list' ? list() : view === 'picker' ? picker() : details();
+  }
+  function endGuidance() {
+    if (!guiding) return;
+    guiding = false;
+    options.onEndGuidance?.();
   }
   function clearRoute() {
-    controller?.abort();
-    controller = null;
-    waiting = '';
-    if (routeLine) routeLine.remove();
+    request?.abort();
+    request = null;
+    routeLine?.remove();
     routeLine = null;
     route = null;
+    routeError = false;
+    endGuidance();
     arrived = false;
     driftCount = 0;
     photoIndex = 0;
   }
-  function selectTarget(target: AedTarget, pan: boolean) {
+  function selectTarget(target: AedTarget) {
+    if (!position || selected?.id === target.id) return;
     clearRoute();
     selected = target;
-    view = 'detail';
-    notice = '';
-    if (pan) map.panTo(latlng(target));
+    view = 'destination';
+    arrived = atTarget();
     updateMarkers();
     render();
+    container.scrollIntoView({ block: 'start' });
+    void navigate();
+    void loadApproachPhotos(target).then((photos) => {
+      if (!destroyed && selected === target && photos.length) render();
+    });
   }
-  function payload(target: AedTarget): NavigationPayload {
+  function payload(): NavigationPayload | null {
+    if (!selected || !position) return null;
     return {
-      target,
+      target: selected,
       position: { ...position },
       route,
-      mode,
+      mode: origin,
       path: route?.coordinates.map(([lon, lat]) => ({ lat, lon })) ?? [],
     };
   }
-  async function navigate({ reroute = false } = {}) {
-    if (!selected) return;
-    if (controller) controller.abort();
+  function atTarget() {
+    return !!(
+      origin === 'live' &&
+      gpsStatus === 'ready' &&
+      position &&
+      selected &&
+      distance(position, selected) <= 20 &&
+      (position.accuracy ?? Infinity) <= 25
+    );
+  }
+  async function navigate(reroute = false) {
+    if (!selected || !position) return;
+    request?.abort();
     const req = new AbortController();
-    controller = req;
-    const timeout = setTimeout(() => req.abort(), 10000);
-    const target = selected;
-    waiting = 'Wyznaczanie trasy pieszej…';
-    notice = '';
-    status();
+    request = req;
+    const timeout = setTimeout(() => req.abort(), 12000);
+    routeError = false;
     lastRequest = Date.now();
     driftCount = 0;
+    const target = selected;
+    if (!reroute) render();
     try {
       const calculated = await walkingRoute(position, target, req.signal);
-      if (destroyed || controller !== req || selected !== target) return;
+      if (destroyed || request !== req || selected !== target) return;
       route = calculated;
-      view = 'nav';
-      arrived = distance(position, target) < 20 && (position.accuracy ?? 0) <= 25;
-      if (routeLine) routeLine.remove();
+      arrived = atTarget();
+      routeLine?.remove();
       routeLine = L.polyline(
-        route.coordinates.map(([lon, lat]): L.LatLngTuple => [lat, lon]),
-        { color: '#1764de', weight: 5, opacity: 0.95, lineCap: 'round' },
+        calculated.coordinates.map(([lon, lat]): L.LatLngTuple => [lat, lon]),
+        { color: '#065bba', weight: 5, opacity: 0.95, lineCap: 'round' },
       ).addTo(map);
       if (!reroute)
-        map.fitBounds(routeLine.getBounds(), { padding: [40, 35], maxZoom: 18, animate: false });
-      options.onNavigate?.(payload(target));
-      if (mode === 'live' && target.id !== DEMO_TARGET.id) {
-        void loadApproachPhotos(target).then((photos) => {
-          if (!destroyed && selected === target && photos.length) render();
+        map.fitBounds(routeLine.getBounds().extend(latlng(position)).extend(latlng(target)), {
+          padding: [26, 32],
+          maxZoom: 18,
+          animate: false,
         });
-      }
+      const state = payload();
+      if (state) options.onNavigate?.(state);
     } catch {
-      if (destroyed || controller !== req) return;
-      if (routeLine) routeLine.remove();
+      if (destroyed || request !== req) return;
+      routeLine?.remove();
       routeLine = null;
       route = null;
-      view = 'nav';
-      notice = 'Trasa piesza jest niedostępna. Możesz sprawdzić adres i ponowić próbę.';
+      routeError = true;
     } finally {
       clearTimeout(timeout);
-      if (!destroyed && controller === req) {
-        waiting = '';
-        controller = null;
+      if (!destroyed && request === req) {
+        request = null;
         render();
       }
     }
   }
-  function setPosition(next: GeoPoint, first = false) {
+  function updateNearest() {
+    nearest = position ? nearby(points, position, 'all') : [];
+    lastListAt = position;
+    updateMarkers();
+  }
+  function setPosition(next: GeoPoint, recenter: boolean) {
     position = next;
-    if (view === 'list' && (!lastListAt || first || distance(lastListAt, position) > 10)) {
-      nearest = nearby(points, position, filter);
-      lastListAt = position;
-      updateMarkers();
-    } else userMarker.setLatLng(latlng(position));
-    if (view === 'nav' && selected) {
-      arrived = distance(position, selected) <= 20 && (position.accuracy ?? 0) <= 25;
-      if (route && !arrived && mode === 'live') {
-        const deviation = routeProgress(route, position).offRoute;
-        driftCount = deviation > Math.max(45, position.accuracy || 0) ? driftCount + 1 : 0;
-        if (driftCount >= 2 && !controller && Date.now() - lastRequest > 15000)
-          void navigate({ reroute: true });
+    if (view === 'picker') view = 'list';
+    if (view === 'list' && (!lastListAt || recenter || distance(lastListAt, next) > 10))
+      updateNearest();
+    else if (userMarker) userMarker.setLatLng(latlng(next));
+    if (selected) {
+      arrived = atTarget();
+      if (route && !arrived && origin === 'live') {
+        const deviation = routeProgress(route, next).offRoute;
+        driftCount = deviation > Math.max(45, next.accuracy || 0) ? driftCount + 1 : 0;
+        if (driftCount >= 2 && !request && Date.now() - lastRequest > 15000) void navigate(true);
       }
     }
-    if (first) map.setView(latlng(position), 16, { animate: false });
+    if (recenter && (!selected || guiding)) map.setView(latlng(next), 16, { animate: false });
+    if (guiding && view === 'directions') map.panTo(latlng(next), { animate: false });
     render();
   }
+  function stopGps() {
+    gpsTicket++;
+    if (watch !== null) navigator.geolocation?.clearWatch(watch);
+    watch = null;
+  }
   function gps() {
+    stopGps();
+    const ticket = gpsTicket;
+    gpsStatus = 'waiting';
+    arrived = false;
+    locationNotice = '';
     if (!navigator.geolocation) {
-      notice = 'Ta przeglądarka nie obsługuje lokalizacji.';
-      status();
+      gpsStatus = 'error';
+      locationNotice = 'Przeglądarka nie obsługuje lokalizacji.';
+      render();
       return;
     }
-    if (watch !== null) navigator.geolocation.clearWatch(watch);
-    const ticket = ++gpsTicket;
-    waiting = 'Ustalanie Twojej lokalizacji…';
-    notice = '';
-    status();
+    if (view === 'picker') showList();
+    render();
     let first = true;
     watch = navigator.geolocation.watchPosition(
       (fix) => {
-        if (destroyed || ticket !== gpsTicket) return;
-        waiting = '';
-        const next = {
-          lat: fix.coords.latitude,
-          lon: fix.coords.longitude,
-          accuracy: fix.coords.accuracy,
-          heading: fix.coords.heading,
-        };
-        if (first && mode === 'demo') {
+        if (destroyed || ticket !== gpsTicket || !active) return;
+        const switching = origin === 'manual';
+        if (switching) {
           clearRoute();
-          view = 'list';
           selected = null;
+          view = 'list';
         }
-        mode = 'live';
-        notice =
-          next.accuracy > 90
-            ? 'Przybliżona lokalizacja GPS (± ' + meters(next.accuracy) + ').'
+        origin = 'live';
+        gpsStatus = 'ready';
+        locationNotice =
+          fix.coords.accuracy > 90
+            ? 'Przybliżona lokalizacja GPS (± ' + meters(fix.coords.accuracy) + ').'
             : '';
-        setPosition(next, first);
+        setPosition(
+          {
+            lat: fix.coords.latitude,
+            lon: fix.coords.longitude,
+            accuracy: fix.coords.accuracy,
+            heading: fix.coords.heading,
+          },
+          first,
+        );
         first = false;
       },
       (err) => {
-        if (destroyed || ticket !== gpsTicket) return;
-        waiting = '';
-        notice =
-          (err.code === 1 ? 'Brak zgody na lokalizację.' : 'Nie udało się odczytać GPS.') +
-          (mode === 'demo'
-            ? ' Możesz kontynuować pokaz w Warszawie.'
-            : ' Widoczna jest ostatnia odczytana pozycja.');
-        status();
+        if (destroyed || ticket !== gpsTicket || !active) return;
+        gpsStatus = 'error';
+        arrived = false;
+        locationNotice =
+          err.code === 1
+            ? 'Zezwól na lokalizację w ustawieniach przeglądarki lub wybierz punkt na mapie.'
+            : 'GPS jest niedostępny. Spróbuj ponownie lub wybierz punkt na mapie.';
+        if (position && origin === 'live') locationNotice += ' Widać ostatni odczyt.';
+        render();
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 3000 },
     );
-  }
-  function demo() {
-    gpsTicket++;
-    if (watch !== null) navigator.geolocation.clearWatch(watch);
-    watch = null;
-    mode = 'demo';
-    position = { ...DEMO_POSITION };
-    showList();
-  }
-  function advance() {
-    if (mode !== 'demo' || !selected || !route) return;
-    const current = routeProgress(route, position);
-    const next = route.steps[current.index + 1];
-    const [lon, lat] = next?.maneuver.location ?? [selected.lon, selected.lat];
-    setPosition({ lon, lat });
-    map.panTo(latlng(position));
   }
   function showList() {
     clearRoute();
     selected = null;
     view = 'list';
-    notice = '';
-    nearest = nearby(points, position, filter);
-    lastListAt = position;
-    map.setView(latlng(position), 16, { animate: false });
+    listLimit = 8;
+    updateNearest();
+    if (position) map.setView(latlng(position), 16, { animate: false });
+    render();
+  }
+  function openPicker() {
+    stopGps();
+    searchRequest?.abort();
+    searchRequest = null;
+    searchResults = [];
+    locationNotice = '';
+    view = 'picker';
+    pickerConfirmed = position !== null;
     updateMarkers();
     render();
   }
+  function markPicker() {
+    if (view !== 'picker') return;
+    pickerConfirmed = true;
+    const confirm = panel.querySelector<HTMLButtonElement>('[data-act="set-origin"]');
+    if (confirm) confirm.disabled = false;
+  }
+  map.on('dragend', markPicker);
+  map.on('click', (event: L.LeafletMouseEvent) => {
+    if (view !== 'picker') return;
+    map.setView(event.latlng, Math.max(16, map.getZoom()), { animate: false });
+    markPicker();
+  });
+  async function searchPlace(form: HTMLFormElement) {
+    const input = form.elements.namedItem('place');
+    if (!(input instanceof HTMLInputElement) || !input.value.trim()) return;
+    searchRequest?.abort();
+    const current = new AbortController();
+    searchRequest = current;
+    const results = $('.am-results');
+    results.textContent = 'Szukam miejsca…';
+    const timeout = setTimeout(() => current.abort(), 8000);
+    try {
+      const places = await searchStartLocations(input.value.trim(), current.signal);
+      if (destroyed || searchRequest !== current || view !== 'picker') return;
+      searchResults = places;
+      results.innerHTML = places.length
+        ? places
+            .map(
+              (p, i) =>
+                '<button type="button" class="am-place" data-act="place" data-val="' +
+                i +
+                '"><strong>' +
+                esc(p.name) +
+                '</strong><small>' +
+                esc(p.detail) +
+                '</small></button>',
+            )
+            .join('') + '<small>Źródło: GUS, Portal Geostatystyczny</small>'
+        : 'Brak wyników. Dodaj numer budynku lub wskaż miejsce na mapie.';
+    } catch {
+      if (!destroyed && searchRequest === current && view === 'picker')
+        results.textContent = 'Wyszukiwanie jest niedostępne. Możesz wskazać miejsce na mapie.';
+    } finally {
+      clearTimeout(timeout);
+      if (searchRequest === current) searchRequest = null;
+    }
+  }
+  function startGuidance(ar: boolean) {
+    const state = payload();
+    if (!route || !state) return;
+    if (!guiding) {
+      guiding = true;
+      options.onStartGuidance?.(state);
+    }
+    if (ar) options.onOpenAR?.(state);
+    else if (position) map.setView(latlng(position), 17, { animate: false });
+    render();
+  }
+  function back() {
+    if (view === 'list') options.onBack?.();
+    else if (view === 'directions') {
+      endGuidance();
+      view = 'destination';
+      render();
+    } else {
+      const abandonedPicker = view === 'picker';
+      searchRequest?.abort();
+      showList();
+      if (abandonedPicker && active && origin === 'live' && gpsStatus !== 'error') gps();
+    }
+  }
   const click = (e: MouseEvent) => {
     if (!(e.target instanceof Element)) return;
-    const b = e.target.closest<HTMLElement>('[data-act]');
-    if (!b || !container.contains(b)) return;
-    const action = b.dataset['act'];
-    if (action === 'back') {
-      if (view === 'list') options.onBack?.();
-      else if (view === 'nav') selectTarget(selected!, false);
-      else showList();
+    const button = e.target.closest<HTMLElement>('[data-act]');
+    if (!button || !container.contains(button)) return;
+    switch (button.dataset['act']) {
+      case 'back':
+        back();
+        break;
+      case 'gps':
+        gps();
+        break;
+      case 'plus':
+        map.zoomIn();
+        break;
+      case 'minus':
+        map.zoomOut();
+        break;
+      case 'select': {
+        const target = nearest.find((entry) => entry.target.id === button.dataset['val'])?.target;
+        if (target) selectTarget(target);
+        break;
+      }
+      case 'picker':
+        openPicker();
+        break;
+      case 'place': {
+        const found = searchResults[Number(button.dataset['val'])];
+        if (found) {
+          map.setView(latlng(found), 16, { animate: false });
+          markPicker();
+          $('.am-results').textContent = found.name;
+        }
+        break;
+      }
+      case 'set-origin': {
+        const center = map.getCenter();
+        clearRoute();
+        origin = 'manual';
+        selected = null;
+        locationNotice = '';
+        setPosition({ lat: center.lat, lon: center.lng }, true);
+        break;
+      }
+      case 'more':
+        listLimit += 12;
+        render();
+        break;
+      case 'directions':
+        view = 'directions';
+        render();
+        break;
+      case 'guide':
+        startGuidance(false);
+        break;
+      case 'ar':
+        startGuidance(true);
+        break;
+      case 'arrive': {
+        const state = payload();
+        if (arrived && state) options.onArrive?.(state);
+        break;
+      }
+      case 'photo': {
+        if (!selected || !position) break;
+        const count = routePhotos(selected, position, position.heading).length;
+        if (count) photoIndex = (photoIndex + 1) % count;
+        render();
+        break;
+      }
+      case 'recording':
+        options.onOpenRecording?.();
+        break;
+      case 'retry':
+        if (!request) void navigate();
+        break;
+      case 'catalog':
+        void load();
+        break;
     }
-    if (action === 'list') showList();
-    if (action === 'detail') selectTarget(selected!, false);
-    if (action === 'gps') gps();
-    if (action === 'demo') demo();
-    if (action === 'plus') map.zoomIn();
-    if (action === 'minus') map.zoomOut();
-    if (action === 'select') {
-      const t = nearest.find((a) => a.target.id === b.dataset['val'])?.target;
-      if (t) selectTarget(t, true);
-    }
-    if (action === 'filter') {
-      filter = b.dataset['val'] ?? 'all';
-      listLimit = 4;
-      nearest = nearby(points, position, filter);
-      updateMarkers();
-      render();
-    }
-    if (action === 'more') {
-      listLimit += 12;
-      render();
-    }
-    if (action === 'navigate' && !controller) void navigate();
-    if (action === 'photo') {
-      const n = routePhotos(selected!, position, position.heading).length;
-      photoIndex = (photoIndex + 1) % n;
-      render();
-    }
-    if (action === 'ar' && route) options.onOpenAR?.(payload(selected!));
-    if (action === 'arrive' && selected) options.onArrive?.(payload(selected));
-    if (action === 'advance') advance();
+  };
+  const submit = (event: Event) => {
+    if (!(event.target instanceof HTMLFormElement)) return;
+    event.preventDefault();
+    void searchPlace(event.target);
   };
   container.addEventListener('click', click);
-  function load() {
-    loadPoints()
-      .then((all) => {
-        if (destroyed) return;
-        points = all;
-        nearest = nearby(points, position, filter);
-        updateMarkers();
-        render();
-      })
-      .catch(() => {
-        if (destroyed) return;
-        usedFallback = true;
-        notice = 'Nie udało się wczytać katalogu. Dostępny jest przykładowy punkt.';
-        render();
-      });
+  container.addEventListener('submit', submit);
+  async function load() {
+    if (loadingData) return;
+    loadingData = true;
+    catalogueError = false;
+    try {
+      const items = await loadPoints();
+      if (destroyed) return;
+      points = items;
+      updateNearest();
+    } catch {
+      if (!destroyed) catalogueError = true;
+    } finally {
+      loadingData = false;
+      if (!destroyed && view !== 'picker') render();
+    }
   }
-  updateMarkers();
   render();
-  load();
-  if (options.initialMode === 'live') gps();
-  else if (options.initialMode !== 'demo' && navigator.permissions) {
-    void navigator.permissions
-      .query({ name: 'geolocation' })
-      .then((permission) => {
-        if (!destroyed && permission.state === 'granted' && !gpsTicket) gps();
-      })
-      .catch(() => {
-        /* A visible GPS button also works in browsers without permission queries. */
-      });
-  }
+  void load();
+  if (active) gps();
   return {
     getState: () => ({
-      position: { ...position },
+      position: position ? { ...position } : null,
       target: selected,
-      mode,
+      mode: origin,
       route,
       path: route?.coordinates.map(([lon, lat]) => ({ lat, lon })) ?? [],
       view,
       nearest,
-      usedFallback,
+      usedFallback: false,
     }),
+    setActive(next) {
+      if (active === next || destroyed) return;
+      active = next;
+      if (!next) {
+        stopGps();
+        return;
+      }
+      map.invalidateSize({ pan: false });
+      if (origin === 'live' && view !== 'picker') gps();
+    },
     destroy() {
       destroyed = true;
-      gpsTicket++;
-      controller?.abort();
-      if (watch !== null) navigator.geolocation.clearWatch(watch);
+      endGuidance();
+      stopGps();
+      request?.abort();
+      searchRequest?.abort();
       container.removeEventListener('click', click);
+      container.removeEventListener('submit', submit);
       resize.disconnect();
       map.remove();
       container.replaceChildren();

@@ -21,11 +21,7 @@ export function AedInstructions({ onBack }: { onBack: () => void }) {
         <button type="button" className="rescue-round" onClick={onBack} aria-label="Wróć">
           <Symbol name="back" />
         </button>
-        <span>Instrukcja AED</span>
-        <a className="rescue-emergency" href="tel:112">
-          <Symbol name="phone" size={15} />
-          112
-        </a>
+        <h1>Instrukcja AED</h1>
       </div>
       <div className="rescue-guide-main">
         <div className="rescue-kicker">

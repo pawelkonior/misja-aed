@@ -1,0 +1,241 @@
+.phone-stage {
+  --phone-content-height: 100dvh;
+}
+.phone-stage,
+.phone-body,
+.phone-display,
+.phone-viewport,
+.phone-scroll {
+  display: contents;
+}
+.phone-buttons,
+.phone-top,
+.phone-bottom {
+  display: none;
+}
+
+/* Physical touch screens use their own hardware, safe areas and page scroll. */
+@media (hover: hover) and (pointer: fine) {
+  .phone-stage {
+    --phone-width: 410px;
+    --phone-height: 864px;
+    --phone-inset: 9px;
+    --phone-crown: 43px;
+    --phone-chin: 14px;
+    --phone-content-height: calc(
+      var(--phone-height) - var(--phone-inset) * 2 - var(--phone-crown) - var(--phone-chin)
+    );
+    /* The ratios scale the entire device, keeping its internal layout at phone size. */
+    --phone-scale: min(
+      1,
+      tan(atan2(calc(100dvw - 26px), var(--phone-width))),
+      tan(atan2(calc(100dvh - 28px), var(--phone-height)))
+    );
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100dvh;
+    overflow: clip;
+    background: radial-gradient(ellipse at 50% 42%, #fafafa 0%, #f3f3f3 54%, #ebeced 100%);
+  }
+  .phone-stage .phone-body {
+    display: block;
+    position: absolute;
+    width: var(--phone-width);
+    height: var(--phone-height);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(var(--phone-scale));
+    border-radius: 61px;
+    background: linear-gradient(
+      105deg,
+      #ac4c12 0%,
+      #ff9636 1%,
+      #ffaf58 2%,
+      #ed741f 4%,
+      #f57d25 22%,
+      #ffae54 50%,
+      #ff942f 78%,
+      #fa882e 97%,
+      #c35a17 99%,
+      #913d0e 100%
+    );
+    box-shadow:
+      inset 0 0 0 1px #c35c1b,
+      inset 0 1px 1px 2px #ffd19b,
+      inset 0 -1px 2px 1px #b75c21,
+      0 2px 3px #4d301f40,
+      5px 11px 19px -8px #44271838,
+      12px 27px 45px -17px #32271d46;
+  }
+  .phone-body::before {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    inset: 6px;
+    border-radius: 55px;
+    background: #171716;
+    box-shadow:
+      0 0 0 1px #c7611f,
+      inset 0 0 0 1px #514235;
+  }
+  .phone-buttons {
+    display: block;
+    pointer-events: none;
+  }
+  .phone-buttons i {
+    position: absolute;
+    left: -3px;
+    width: 4px;
+    border: 1px solid #a34f25;
+    border-radius: 2px 0 0 2px;
+    background: linear-gradient(to right, #c56520, #ffac59 65%, #e57c2c);
+    box-shadow: -1px 1px 2px #683d2324;
+  }
+  .phone-action {
+    top: 19%;
+    height: 25px;
+  }
+  .phone-volume-up {
+    top: 25%;
+    height: 49px;
+  }
+  .phone-volume-down {
+    top: 32%;
+    height: 49px;
+  }
+  .phone-buttons .phone-power {
+    left: auto;
+    right: -3px;
+    top: 28%;
+    height: 76px;
+    border-radius: 0 2px 2px 0;
+  }
+  .phone-display {
+    --phone-surface: white;
+    --phone-indicator: #25302c;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    inset: var(--phone-inset);
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 52px;
+    background: var(--phone-surface);
+  }
+  .phone-display:has(.screen-home, .screen-services, .screen-more) {
+    --phone-surface: #f5f6fa;
+  }
+  .phone-display:has(.screen-ar, .screen-recording) {
+    --phone-surface: #182529;
+    --phone-indicator: #f1f5f4;
+  }
+  .phone-top {
+    display: grid;
+    flex: 0 0 var(--phone-crown);
+    place-items: start center;
+    padding-top: 8px;
+  }
+  .phone-island {
+    position: relative;
+    display: block;
+    width: 103px;
+    height: 26px;
+    border-radius: 18px;
+    background: #090a09;
+    box-shadow:
+      inset 0 -1px 0 #252725,
+      0 0 0 1px #070907;
+  }
+  .phone-island::after {
+    content: '';
+    position: absolute;
+    right: 11px;
+    top: 9px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at 40% 37%,
+      #586479 0%,
+      #243448 20%,
+      #101b25 48%,
+      #11130f 74%
+    );
+    box-shadow: 0 0 0 1px #131614;
+  }
+  .phone-viewport {
+    display: block;
+    position: relative;
+    height: var(--phone-content-height);
+    min-height: 0;
+    flex: 1 1 auto;
+    /* Capture fixed bars outside the scroll layer, but inside the device. */
+    transform: translateZ(0);
+  }
+  .phone-scroll {
+    display: block;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: clip;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  .phone-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .phone-bottom {
+    display: grid;
+    height: var(--phone-chin);
+    flex: 0 0 var(--phone-chin);
+    place-items: start center;
+    padding-top: 3px;
+    background: var(--phone-surface);
+  }
+  .phone-display:has(.wallet-nav) .phone-bottom {
+    background: white;
+  }
+  .phone-bottom::after {
+    content: '';
+    width: 112px;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--phone-indicator);
+    opacity: 0.84;
+  }
+  .phone-scroll :is(.mobile-shell, .mobile-map, .am-root) {
+    width: 100%;
+    min-height: var(--phone-content-height);
+    box-shadow: none;
+  }
+  .phone-scroll .ar-hud {
+    height: var(--phone-content-height);
+  }
+  .phone-scroll .am-map {
+    height: clamp(238px, calc(var(--phone-content-height) * 0.4), 365px);
+  }
+  .phone-scroll .wallet-nav {
+    width: 100%;
+  }
+  .phone-stage .modal[open] {
+    position: fixed;
+    inset: 50% auto auto 50%;
+    margin: 0;
+    width: calc(var(--phone-width) - 58px);
+    max-width: none;
+    max-height: calc(var(--phone-content-height) - 40px);
+    overflow-y: auto;
+    transform: translate(-50%, -50%) scale(var(--phone-scale));
+  }
+  .phone-stage .modal::backdrop {
+    background: transparent;
+  }
+  .phone-display:has(.modal[open])::after {
+    content: '';
+    position: absolute;
+    z-index: 1300;
+    inset: 0;
+    background: #1422327a;
+    pointer-events: none;
+  }
+}

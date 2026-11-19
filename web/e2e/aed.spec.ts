@@ -1,56 +1,159 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { z } from 'zod';
+const widok = { lat: 52.23123, lon: 21.01416 };
+const chmielnaAED = { lat: 52.2321787, lon: 21.0146526 };
 
-test('offers the AED service and emergency number without contacting the template backend', async ({
-  page,
-}) => {
-  const calls: string[] = [];
-  await page.route(/\/(api\/v1\/items|health\/ready)\b/, async (route) => {
-    calls.push(route.request().url());
-    await route.abort();
-  });
+test('shows the AED service beside mobile wallet documents and tabs', async ({ page }) => {
   await page.goto('./');
-  const dashboardTitle = (await page
-    .getByRole('navigation', { name: 'Nawigacja mobilna' })
-    .isVisible())
-    ? 'Dokumenty'
-    : 'Pulpit';
-  await expect(page.getByRole('heading', { level: 1, name: dashboardTitle })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Otwórz mapę AED' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /112/ })).toHaveAttribute('href', 'tel:112');
-  const size = await page.evaluate(() => ({
-    width: document.documentElement.scrollWidth,
-    viewport: window.innerWidth,
-  }));
-  expect(size.width).toBeLessThanOrEqual(size.viewport);
-  const accessibility = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze();
+  await expect(page.getByRole('heading', { name: 'mObywatel' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Defibrylator w pobliżu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'mDowód' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Nawigacja mobilna' })).toBeVisible();
+  await expect(page.getByText(/prototyp|demo|112/i)).toHaveCount(0);
+  const framed = await page.evaluate(
+    () => matchMedia('(hover: hover) and (pointer: fine)').matches,
+  );
+  const island = page.locator('.phone-island');
+  if (framed) {
+    await expect(island).toBeVisible();
+    const phone = await page.locator('.phone-body').boundingBox();
+    const viewport = page.viewportSize()!;
+    expect(phone!.x).toBeGreaterThanOrEqual(0);
+    expect(phone!.y).toBeGreaterThanOrEqual(0);
+    expect(phone!.y + phone!.height).toBeLessThanOrEqual(viewport.height + 1);
+    const nav = await page.getByRole('navigation', { name: 'Nawigacja mobilna' }).boundingBox();
+    expect(nav!.y + nav!.height).toBeLessThan(phone!.y + phone!.height);
+  } else {
+    await expect(island).toBeHidden();
+  }
+  const size = await page.locator('main').boundingBox();
+  expect(size!.width).toBeLessThanOrEqual(Math.min(480, page.viewportSize()!.width));
   expect(
-    accessibility.violations.map((v) => ({ id: v.id, targets: v.nodes.map((n) => n.target) })),
+    (
+      await new AxeBuilder({ page })
+        .setLegacyMode()
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze()
+    ).violations,
   ).toEqual([]);
-  expect(calls).toEqual([]);
 });
-
-test('opens a walking route, switches to AR and starts the instructions when the user has the AED', async ({
+test('uses GPS, routes when selecting an AED, and offers an optional call on starting guidance', async ({
   page,
+  context,
 }) => {
+  await context.setGeolocation({
+    latitude: widok.lat,
+    longitude: widok.lon,
+    accuracy: 5,
+  });
+  await context.grantPermissions(['geolocation']);
   await page.goto('./');
-  await page.getByRole('button', { name: 'Otwórz mapę AED' }).click();
+  await page.getByRole('button', { name: 'Defibrylator w pobliżu' }).click();
   await page
-    .getByRole('button', { name: /Dom towarowy Bracia Jabłkowscy.*Dostęp publiczny/i })
+    .getByRole('button', { name: /Dom towarowy Bracia Jabłkowscy/i })
+    .last()
     .click();
-  await page.getByRole('button', { name: 'Wyznacz trasę pieszą' }).click();
-  await expect(page.getByText(/291 m.*4 min/)).toBeVisible();
-  await page.getByRole('button', { name: 'Prowadź w AR' }).click();
-  await expect(page.getByText('Symulacja AR', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Mam już AED' }).click();
+  await expect(page.getByText(/291 m/).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Wskazówki dojścia' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tryb AR' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Zadzwoń' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Tryb AR' }).click();
+  await expect(page.getByRole('timer')).toContainText(/(10|9) s/);
+  await expect(page.getByRole('link', { name: 'Zadzwoń teraz' })).toHaveAttribute(
+    'href',
+    'tel:112',
+  );
+  await page.getByRole('button', { name: 'Anuluj' }).click();
+  await expect(page.getByRole('link', { name: 'Zadzwoń' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Instrukcja AED' })).toHaveCount(0);
+  await context.setGeolocation({
+    latitude: chmielnaAED.lat,
+    longitude: chmielnaAED.lon,
+    accuracy: 4,
+  });
+  await page.getByRole('button', { name: 'Instrukcja AED' }).click();
   await expect(page.getByRole('heading', { name: 'Wezwij pomoc' })).toBeVisible();
   await page.getByRole('button', { name: 'Dalej', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Włącz defibrylator' })).toBeVisible();
 });
 
+test('walking directions offer the call once per trip and cancellation keeps the walking route', async ({
+  page,
+  context,
+}) => {
+  await context.setGeolocation({ latitude: widok.lat, longitude: widok.lon, accuracy: 4 });
+  await context.grantPermissions(['geolocation']);
+  await page.goto('./#mapa');
+  await page
+    .getByRole('button', { name: /Dom towarowy Bracia Jabłkowscy/i })
+    .last()
+    .click();
+  await page.getByRole('button', { name: 'Wskazówki dojścia' }).click();
+  await expect(page.getByRole('link', { name: 'Zadzwoń' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Prowadź' }).click();
+  await expect(page.getByRole('timer')).toContainText(/(10|9) s/);
+  await expect(page.getByRole('link', { name: 'Zadzwoń teraz' })).toHaveAttribute(
+    'href',
+    'tel:112',
+  );
+  await page.getByRole('button', { name: 'Anuluj' }).click();
+  await expect(page.locator('.am-steps li').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Tryb AR' }).click();
+  await expect(
+    page.getByRole('region', { name: 'Nawigacja w rzeczywistości rozszerzonej' }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Zadzwoń' })).toHaveCount(0);
+});
+test('opens the recorded street walk after a location refusal without marking a location', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        watchPosition(_accept: PositionCallback, reject: PositionErrorCallback) {
+          queueMicrotask(() =>
+            reject({
+              code: 1,
+              message: 'denied',
+              PERMISSION_DENIED: 1,
+              POSITION_UNAVAILABLE: 2,
+              TIMEOUT: 3,
+            }),
+          );
+          return 1;
+        },
+        clearWatch() {
+          return;
+        },
+      },
+    });
+  });
+  await page.goto('./#mapa');
+  await expect(page.getByRole('heading', { name: 'Skąd wyruszasz?' })).toBeVisible();
+  await expect(page.locator('[title="Twoja lokalizacja"]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Wybierz punkt na mapie/ })).toBeVisible();
+  await page.getByRole('button', { name: /Obejrzyj nagranie przejścia/ }).click();
+  await expect(page.getByRole('region', { name: 'Nagranie przejścia do AED' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Zadzwoń' })).toHaveCount(0);
+});
+test('shows recorded directions and unlocks instructions at the AED', async ({ page }) => {
+  await page.goto('./#nagranie');
+  const film = page.locator('video');
+  await expect(film).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Instrukcja AED' })).toHaveCount(0);
+  await expect
+    .poll(() => film.evaluate((v: HTMLVideoElement) => v.readyState))
+    .toBeGreaterThanOrEqual(2);
+  await expect.poll(() => film.evaluate((v: HTMLVideoElement) => v.duration)).toBeGreaterThan(6);
+  await film.evaluate((v: HTMLVideoElement) => {
+    v.currentTime = v.duration - 0.3;
+  });
+  await page.getByRole('button', { name: 'Instrukcja AED' }).click();
+  await expect(page.getByRole('heading', { name: 'Instrukcja AED' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Zadzwoń' })).toHaveCount(0);
+});
 const catalogueSchema = z.object({
   records: z.number().int().positive(),
   resources: z.array(z.object({ format: z.string(), path: z.string() })),
@@ -92,33 +195,4 @@ test('serves the downloadable national dataset described by the catalogue', asyn
       expect(text.split('\n', 1)[0]).toMatch(/source_url/);
     }
   }
-});
-
-test('uses all four mobile tabs and opens the QR and document dialogs', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('./');
-  const nav = page.getByRole('navigation', { name: 'Nawigacja mobilna' });
-  await expect(nav).toBeVisible();
-  for (const label of ['mDowód', 'mPrawo jazdy', 'Moje pojazdy']) {
-    await page.getByRole('button', { name: new RegExp(label) }).click();
-    const dialog = page.getByRole('dialog', { name: label });
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Zamknij okno' }).click();
-  }
-  await nav.getByRole('link', { name: 'Usługi' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Usługi' })).toBeVisible();
-  await nav.getByRole('button', { name: 'Kod QR' }).click();
-  const modal = page.getByRole('dialog', { name: 'Otwórz demo na telefonie' });
-  await expect(modal.getByRole('img')).toBeVisible();
-  expect(
-    await modal
-      .getByRole('img')
-      .evaluate((image: HTMLImageElement) => image.decode().then(() => image.naturalWidth)),
-  ).toBeGreaterThan(200);
-  await modal.getByRole('button', { name: 'Zamknij okno' }).click();
-  await nav.getByRole('link', { name: 'Więcej' }).click();
-  await page.getByRole('link', { name: 'Otwórz zbiór danych AED' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Otwarte dane' })).toBeVisible();
-  await nav.getByRole('link', { name: 'Dokumenty' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Dokumenty' })).toBeVisible();
 });

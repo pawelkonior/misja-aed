@@ -1,0 +1,323 @@
+.ar-hud {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  height: 100dvh;
+  min-height: 340px;
+  background: #182529;
+  color: #fff;
+  font-family: inherit;
+  text-align: left;
+}
+.ar-hud::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    #07141790,
+    transparent 19%,
+    transparent 62%,
+    #051114cc 100%
+  );
+}
+.ar-camera {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ar-hud button,
+.ar-hud a {
+  font: inherit;
+  cursor: pointer;
+}
+.ar-hud :is(button, a):focus-visible {
+  outline: 3px solid #abf2ff;
+  outline-offset: 2px;
+}
+.ar-hud-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: 16px;
+  right: 16px;
+}
+.ar-glass {
+  color: #fff;
+  background: #12262b70;
+  border: 1px solid #ffffff59;
+  border-radius: 24px;
+}
+.ar-back,
+.ar-playback {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+.ar-mode,
+.ar-bearing {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 660;
+  text-shadow: 0 1px 4px #000;
+}
+.ar-bearing {
+  margin-left: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ar-guideline {
+  position: absolute;
+  pointer-events: none;
+  height: 25%;
+  width: 100%;
+  overflow: visible;
+}
+.ar-road-shadow {
+  fill: #071f27;
+  opacity: 0.36;
+  filter: blur(2.2px);
+}
+.ar-road-face {
+  stroke: #baffec;
+  stroke-width: 0.7px;
+  stroke-opacity: 0.7;
+  stroke-linejoin: round;
+}
+.ar-road-rim {
+  fill: none;
+  stroke: #d5ffed;
+  stroke-width: 1.4px;
+  stroke-linecap: round;
+}
+.ar-road-tile {
+  opacity: 0.88;
+  animation: ar-road-pulse 2s ease-in-out infinite;
+}
+.ar-guideline[data-paused='true'] .ar-road-tile {
+  animation-play-state: paused;
+}
+@keyframes ar-road-pulse {
+  0%,
+  65%,
+  100% {
+    opacity: 0.57;
+  }
+  24% {
+    opacity: 0.98;
+    filter: drop-shadow(0 0 2px #86ffdca6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ar-road-tile {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+.ar-maneuver {
+  position: absolute;
+  top: calc(max(14px, env(safe-area-inset-top)) + 57px);
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 62px;
+  max-width: calc(100% - 32px);
+  color: #a8ffdf;
+  padding: 8px 16px 9px 12px;
+  border-radius: 8px 16px 16px 8px;
+  border: 1px solid #cefff64a;
+  border-left: 2px solid #a2ffdc;
+  background: linear-gradient(100deg, #0c262cef, #12272dbb);
+  box-shadow: 0 4px 16px #02171427;
+}
+.ar-maneuver > div {
+  display: grid;
+  gap: 2px;
+}
+.ar-maneuver strong {
+  color: #f1fff8;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ar-maneuver strong small {
+  font-size: 15px;
+  color: #b7d4c8;
+  letter-spacing: 0;
+}
+.ar-maneuver span {
+  color: #dbf3e9;
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.2;
+}
+.ar-target-frame {
+  pointer-events: none;
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+.ar-target-frame {
+  width: 52px;
+  height: 52px;
+  color: #c2ffdfbd;
+  background:
+    linear-gradient(currentColor, currentColor) left top / 11px 1.5px,
+    linear-gradient(currentColor, currentColor) left top / 1.5px 11px,
+    linear-gradient(currentColor, currentColor) right top / 11px 1.5px,
+    linear-gradient(currentColor, currentColor) right top / 1.5px 11px,
+    linear-gradient(currentColor, currentColor) right bottom / 11px 1.5px,
+    linear-gradient(currentColor, currentColor) right bottom / 1.5px 11px,
+    linear-gradient(currentColor, currentColor) left bottom / 11px 1.5px,
+    linear-gradient(currentColor, currentColor) left bottom / 1.5px 11px;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 1px 2px #17252099);
+}
+.ar-hud-footer {
+  position: absolute;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+}
+.ar-live-caption {
+  width: 100%;
+  border-radius: 18px;
+  background: #1021269e;
+  border: 1px solid #ffffff38;
+  padding: 13px 16px;
+}
+.ar-caption-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+}
+.ar-caption-line strong {
+  font-size: clamp(18px, 5vw, 22px);
+  font-weight: 700;
+  line-height: 1.13;
+  letter-spacing: -0.025em;
+  color: white;
+}
+.ar-caption-line span {
+  font-size: 14px;
+  white-space: nowrap;
+  font-weight: 650;
+  color: #c4ffda;
+}
+.ar-live-caption p,
+.ar-no-camera p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.38;
+  color: #eef5f2;
+}
+.ar-instruction {
+  background: #f1fff6;
+  color: #113e32;
+  border: 0;
+  border-radius: 30px;
+  min-height: 47px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.ar-hud .ar-instruction {
+  font-weight: 700;
+}
+.ar-no-camera {
+  position: absolute;
+  inset: 19% 26px auto;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 6px;
+}
+.ar-camera-symbol {
+  display: grid;
+  place-items: center;
+  height: 54px;
+  width: 54px;
+  border-radius: 50%;
+  background: #ffffff10;
+  color: #b0c5c0;
+}
+.ar-no-camera h2 {
+  color: white;
+  font-size: 21px;
+  margin: 6px 0 0;
+}
+.ar-no-camera p {
+  max-width: 32ch;
+  margin: 0 0 5px;
+}
+.ar-pill {
+  min-height: 44px;
+  padding: 6px 15px;
+}
+.ar-record-link,
+.ar-source {
+  color: #fff;
+  background: transparent;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-shadow: 0 1px 4px black;
+  align-self: center;
+}
+.ar-hud .ar-record-link {
+  font-size: 13px;
+  min-height: 42px;
+}
+.ar-hud .ar-source {
+  font-size: 11px;
+  min-height: 32px;
+  text-align: center;
+  line-height: 1.3;
+}
+@media (max-height: 510px) {
+  .ar-no-camera {
+    inset: 14% 8% auto;
+  }
+  .ar-camera-symbol {
+    display: none;
+  }
+  .ar-hud-footer {
+    gap: 3px;
+    bottom: 5px;
+  }
+  .ar-live-caption {
+    padding: 8px 12px;
+  }
+  .ar-guideline {
+    top: 50% !important;
+    height: 30%;
+  }
+  .ar-maneuver {
+    top: 64px;
+    min-height: 44px;
+  }
+}

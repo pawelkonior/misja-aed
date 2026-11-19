@@ -2,29 +2,21 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 
-import { catalog, type Page } from '../../shared/navigation';
+import { catalog } from '../../shared/navigation';
 import { DataView, Home } from './Home';
 
-it('opens the selected service from the dashboard and the nearby-device preview', async () => {
+it('opens the nearby AED map from the wallet next to documents and services', async () => {
   const user = userEvent.setup();
-  const go = vi.fn<(page: Page) => void>();
-  const documents = vi.fn<() => void>();
-  render(<Home go={go} documents={documents} />);
-  expect(screen.getByRole('img', { name: /Trasa demonstracyjna/ })).toBeInTheDocument();
-  for (const [name, destination] of [
-    [/^Otwórz mapę AED$/, 'map'],
-    [/Pokaż trasę na mapie/, 'map'],
-    [/Otwórz mapę najbliższego AED/, 'map'],
-    [/^Mapa AED/, 'map'],
-    [/^Nawigacja AR/, 'ar'],
-    [/^Instrukcja AED/, 'guide'],
-    [/^Otwarte dane o AED/, 'data'],
-  ] as const) {
+  const open = vi.fn<() => void>();
+  render(<Home onOpen={open} />);
+  expect(screen.getByRole('heading', { name: 'mObywatel' })).toBeVisible();
+  for (const name of ['mDowód', 'mPrawo jazdy', 'Moje pojazdy']) {
     await user.click(screen.getByRole('button', { name }));
-    expect(go).toHaveBeenLastCalledWith(destination);
+    expect(screen.getByRole('dialog', { name })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Zamknij okno' }));
   }
-  await user.click(screen.getByRole('button', { name: /mDowód/ }));
-  expect(documents).toHaveBeenCalledOnce();
+  await user.click(screen.getByRole('button', { name: 'Defibrylator w pobliżu Otwórz mapę' }));
+  expect(open).toHaveBeenCalledOnce();
 });
 
 it('links every advertised download, publisher and license to the matching catalogue entry', () => {

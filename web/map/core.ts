@@ -367,7 +367,12 @@ export function routePhotos(
       Math.abs(((photo.heading - (heading ?? bearing(position, DEMO_TARGET)) + 540) % 360) - 180) *
         0.5 +
       distance(position, photo);
-    for (const p of photos.toSorted((a, b) => score(a) - score(b))) {
+    // Before the final approach, show the street entrance before the courtyard.
+    const approach =
+      distance(position, DEMO_TARGET) > 45
+        ? photos
+        : photos.toSorted((a, b) => score(a) - score(b));
+    for (const p of approach) {
       result.push({ ...p, src: asset('map-assets/' + p.file) });
     }
   }
@@ -395,4 +400,28 @@ export function routePhotos(
     });
   }
   return result;
+}
+
+const addressSearchResponse = z.object({ features: z.array(z.unknown()) });
+const addressResult = z.object({
+  geometry: z.object({ type: z.literal('Point'), coordinates: coord }),
+  _search: z.object({ name: z.string(), desc: z.string().optional() }),
+});
+
+export async function searchStartLocations(query: string, signal: AbortSignal) {
+  const params = new URLSearchParams({ q: query, f: 'geojson', cnt: '6' });
+  const response = await fetch('https://geo.stat.gov.pl/api/fts/ref/qq?' + params, {
+    signal,
+    credentials: 'omit',
+    referrerPolicy: 'no-referrer',
+  });
+  if (!response.ok) throw new Error('Wyszukiwanie miejsc jest niedostępne.');
+  const body = addressSearchResponse.parse(await response.json());
+  return body.features.flatMap((feature) => {
+    const result = addressResult.safeParse(feature);
+    if (!result.success) return [];
+    const [lon, lat] = result.data.geometry.coordinates;
+    const { _search: match } = result.data;
+    return [{ lat, lon, name: match.name, detail: match.desc ?? '' }];
+  });
 }

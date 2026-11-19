@@ -1,367 +1,441 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { RefObject } from 'react';
-import { bearing, cameraOrientation, distance, tracedPath } from './geometry';
-import type { CompassEvent, Coordinates } from './geometry';
+import { z } from 'zod';
+import { asset, meters, stepText } from '../../../map/core';
+import { bearing, distance, tracedPath, routeManeuvers } from './geometry';
+import type { Coordinates } from './geometry';
+import type { Step } from '../../../map/types';
+import { RoadArrows } from './RoadArrows';
+import type { Direction } from './RoadArrows';
 import { Symbol } from './Symbol';
-import { meters, routePhotos } from '../../../map/core';
+import { needsCompassPermission, requestArCompass, useArSensors } from './useArSensors';
+import './ar-hud.css';
 
-type Target = Coordinates & {
-  name: string;
-  id?: string;
-  photo?: string;
-  photo_license?: string;
-  source_url?: string;
-};
+export { requestArCompass } from './useArSensors';
+
+type Target = Coordinates & { name: string; id?: string };
 export interface ArProps {
-  target: Target;
+  target: Target | null;
   origin?: Coordinates | null;
   path?: readonly Coordinates[];
-  demo: boolean;
+  steps?: readonly Step[];
+  playRecording?: boolean;
+  onOpenRecording?: () => void;
   onBack: () => void;
   onArrive: () => void;
 }
-type Fix = { point: Coordinates; accuracy: number; at: number };
-type DeviceHeading = { heading: number; tilt: number };
-type OrientationConstructor = typeof DeviceOrientationEvent & {
-  requestPermission?: (absolute?: boolean) => Promise<string>;
-};
-const base = import.meta.env.BASE_URL;
-const labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-function useArSensors(active: boolean, video: RefObject<HTMLVideoElement | null>) {
-  const [fix, setFix] = useState<Fix | null>(null),
-    [heading, setHeading] = useState<DeviceHeading | null>(null);
-  const [gpsMessage, setGpsMessage] = useState('Ustalanie lokalizacji…');
-  const [cameraMessage, setCameraMessage] = useState('Uruchamianie kamery…'),
-    [visible, setVisible] = useState(false);
-  useEffect((): undefined | (() => void) => {
-    if (!active) return undefined;
-    let closed = false,
-      stream: MediaStream | undefined,
-      watch: number | undefined;
-    const player = video.current;
-    const listen = (event: CompassEvent) => {
-      if (
-        !event.absolute &&
-        event.type !== 'deviceorientationabsolute' &&
-        event.webkitCompassHeading === undefined
-      )
-        return;
-      setHeading(cameraOrientation(event));
-    };
-    window.addEventListener('deviceorientationabsolute', listen);
-    window.addEventListener('deviceorientation', listen);
-    if (navigator.geolocation) {
-      watch = navigator.geolocation.watchPosition(
-        (p) => {
-          if (closed) return;
-          setGpsMessage('');
-          setFix({
-            point: { lat: p.coords.latitude, lon: p.coords.longitude },
-            accuracy: p.coords.accuracy,
-            at: p.timestamp,
-          });
-        },
-        (e) => {
-          if (!closed) {
-            setFix(null);
-            setGpsMessage(
-              e.code === 1 ? 'Brak zgody na lokalizację.' : 'Brak aktualnego sygnału GPS.',
-            );
-          }
-        },
-        { enableHighAccuracy: true, maximumAge: 2000, timeout: 12000 },
-      );
-    }
-    if (typeof navigator.mediaDevices?.getUserMedia === 'function')
-      void navigator.mediaDevices
-        .getUserMedia({
-          audio: false,
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        })
-        .then(async (media) => {
-          if (closed) {
-            media.getTracks().forEach((track) => track.stop());
-            return;
-          }
-          stream = media;
-          if (!player) return;
-          const facing = media.getVideoTracks()[0]?.getSettings?.().facingMode;
-          if (facing === 'user') {
-            media.getTracks().forEach((t) => t.stop());
-            stream = undefined;
-            setCameraMessage('Nawigacja AR wymaga tylnej kamery.');
-            return;
-          }
-          player.srcObject = media;
-          await player.play();
-          if (closed) return;
-          setVisible(true);
-          setCameraMessage('');
-          media.getVideoTracks()[0]?.addEventListener('ended', () => {
-            if (!closed) {
-              setVisible(false);
-              setCameraMessage('Kamera została wyłączona.');
-            }
-          });
-        })
-        .catch(() => {
-          if (!closed) {
-            setVisible(false);
-            setCameraMessage('Brak obrazu. Sprawdź dostęp do kamery w przeglądarce.');
-          }
-        });
-    return () => {
-      closed = true;
-      stream?.getTracks().forEach((t) => t.stop());
-      if (player) player.srcObject = null;
-      if (watch !== undefined) navigator.geolocation.clearWatch(watch);
-      window.removeEventListener('deviceorientationabsolute', listen);
-      window.removeEventListener('deviceorientation', listen);
-    };
-  }, [active, video]);
-  return {
-    fix,
-    heading,
-    gpsMessage: navigator.geolocation ? gpsMessage : 'Ta przeglądarka nie udostępnia lokalizacji.',
-    cameraMessage:
-      typeof navigator.mediaDevices?.getUserMedia === 'function'
-        ? cameraMessage
-        : 'Kamera wymaga połączenia HTTPS i zgodnej przeglądarki.',
-    visible,
-  };
-}
+const walkSchema = z.object({
+  title: z.string(),
+  destination: z.string(),
+  attribution: z.string(),
+  sourceUrl: z.string(),
+  cues: z
+    .array(
+      z.object({
+        start: z.number().nonnegative(),
+        direction: z.enum(['straight', 'left', 'right', 'arrived']),
+        text: z.string(),
+        maneuver: z.string(),
+        meters: z.number().nonnegative(),
+        nextMeters: z.number().nonnegative(),
+        upcomingDirection: z.enum(['straight', 'left', 'right', 'arrived']),
+      }),
+    )
+    .min(1),
+});
+type Walk = z.infer<typeof walkSchema>;
+const cardinal = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
-export function ArGuide({ target, origin, path, demo, onBack, onArrive }: ArProps) {
-  const [active, setActive] = useState(false),
-    [motionBlocked, setMotionBlocked] = useState(false);
-  const [travel, setTravel] = useState(0),
-    [walking, setWalking] = useState(false),
-    [yaw, setYaw] = useState(0);
-  const [clock, setClock] = useState(() => Date.now());
-  const video = useRef<HTMLVideoElement>(null);
-  const sensors = useArSensors(active && !demo, video);
-  const route = useMemo(() => {
-    const supplied = path?.length ? [...path] : origin ? [origin] : [];
-    if (!supplied.length || distance(supplied.at(-1)!, target) > 1) supplied.push(target);
-    return tracedPath(supplied);
-  }, [path, origin, target]);
-  const walkComplete = travel >= 1;
-  useEffect((): undefined | (() => void) => {
-    if (!walking || walkComplete) return undefined;
-    const timer = setInterval(() => setTravel((p) => Math.min(1, p + 0.016)), 160);
-    return () => clearInterval(timer);
-  }, [walking, walkComplete]); // Stop the interval at the end of the walk.
-  useEffect((): undefined | (() => void) => {
-    if (!active) return undefined;
-    const timer = setInterval(() => setClock(Date.now()), 2000);
-    return () => clearInterval(timer);
-  }, [active]);
-  const fix = sensors.fix,
-    fresh = Boolean(fix && clock - fix.at < 15000);
-  const demoStart = useMemo(
-    () => (demo && origin ? route.nearest(origin).offset : 0),
-    [demo, origin, route],
-  );
-  const pos = demo
-    ? route.pointAt(demoStart + (route.length - demoStart) * travel)
-    : fresh
-      ? fix?.point
-      : undefined;
-  const direct = pos ? distance(pos, target) : null;
-  const located = demo || Boolean(fresh && fix && fix.accuracy <= 35);
-  const near =
-    located && direct !== null && direct <= 18 && (demo || Boolean(fix && fix.accuracy <= 25));
-  const progress = useMemo(() => (pos ? route.nearest(pos) : null), [pos, route]);
-  const onRoute = Boolean(path && path.length > 1 && progress && progress.deviation < 30);
-  const remaining = progress && onRoute ? Math.max(0, route.length - progress.offset) : direct;
-  // Look ahead on the pedestrian polyline even while proceeding around street corners.
-  const finalLeg =
-    direct !== null &&
-    direct <= 45 &&
-    (!onRoute || (remaining !== null && remaining <= direct + 12));
-  const aim =
-    onRoute && !finalLeg && progress
-      ? route.pointAt(Math.min(route.length, progress.offset + 15))
-      : target;
-  const desired = pos ? bearing(pos, aim) : null;
-  const heading = demo && desired !== null ? (desired + yaw + 360) % 360 : sensors.heading?.heading;
-  const delta =
-    desired !== null && heading !== undefined ? ((desired - heading + 540) % 360) - 180 : null;
-  const tilt = sensors.heading?.tilt ?? 0;
-  const inView = delta !== null && Math.abs(delta) < 27 && Math.abs(tilt) <= 25;
-  const aligned = inView && Math.abs(delta) <= 9;
-  const showOverlay = (demo || sensors.visible) && located && delta !== null;
-  const markerX = 50 + (delta ?? 0) * 1.48;
-  const markerY = 50 + Math.max(-23, Math.min(23, tilt));
-  const photos = demo && pos ? routePhotos(target, pos, heading) : [];
-  const reference =
-    (near ? photos.find((photo) => photo.src === target.photo) : undefined) ?? photos[0];
-  const source = reference?.src ?? base + 'media/approach.webp';
-  const hint = demo
-    ? 'Użyj podglądu marszu lub obróć widok suwakiem.'
-    : !active
-      ? 'Trzymaj telefon pionowo. Kamera i kompas pomogą wskazać kierunek kolejnego punktu.'
-      : !located
-        ? sensors.gpsMessage ||
-          (!fresh
-            ? 'Oczekiwanie na aktualną pozycję GPS.'
-            : 'Dokładność GPS jest za niska, aby pokazać znacznik.')
-        : motionBlocked
-          ? 'Brak dostępu do kompasu. Sprawdź uprawnienia w przeglądarce.'
-          : heading === undefined
-            ? 'Skieruj tylną kamerę przed siebie. Oczekiwanie na zgodny kompas.'
-            : !sensors.visible
-              ? sensors.cameraMessage
-              : 'Położenie znacznika jest przybliżone. Obserwuj drogę i oznaczenia AED.';
-  function start() {
-    const motion = window.DeviceOrientationEvent as OrientationConstructor | undefined;
-    if (motion?.requestPermission)
-      void motion
-        .requestPermission(true)
-        .then((v) => setMotionBlocked(v !== 'granted'))
-        .catch(() => setMotionBlocked(true));
-    setActive(true);
-  }
+function HudHeader({
+  onBack,
+  mode,
+  heading,
+}: {
+  onBack: () => void;
+  mode: string;
+  heading?: number;
+}) {
   return (
-    <section
-      className="rescue-module rescue-ar"
-      aria-label="Nawigacja w rzeczywistości rozszerzonej"
-    >
-      <div className="rescue-shell-head">
-        <button type="button" className="rescue-round" onClick={onBack} aria-label="Wróć do mapy">
-          <Symbol name="back" />
-        </button>
-        <span>Nawigacja AR</span>
-        <Symbol name="aim" />
+    <header className="ar-hud-header">
+      <button type="button" onClick={onBack} aria-label="Wróć do mapy" className="ar-glass ar-back">
+        <Symbol name="back" />
+      </button>
+      <div className="ar-mode">{mode}</div>
+      {heading !== undefined && (
+        <span className="ar-bearing">
+          {heading}° {cardinal[Math.round(heading / 45) % 8]}
+        </span>
+      )}
+    </header>
+  );
+}
+function ManeuverCard({
+  direction,
+  distanceLabel,
+  description,
+  approximate = false,
+}: {
+  direction: Direction;
+  distanceLabel: string;
+  description: string;
+  approximate?: boolean;
+}) {
+  const paths = {
+    left: 'M19 22v-6a7 7 0 0 0-7-7H5m6-6L5 9l6 6',
+    right: 'M5 22v-6a7 7 0 0 1 7-7h7m-6-6 6 6-6 6',
+    straight: 'M12 22V4m-7 7 7-7 7 7',
+    arrived: 'M6 22V3m0 1h13l-3 4 3 4H6',
+  };
+  return (
+    <div className="ar-maneuver">
+      <svg
+        aria-hidden="true"
+        width="28"
+        height="28"
+        viewBox="0 0 24 26"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d={paths[direction]} />
+      </svg>
+      <div>
+        <strong>
+          {approximate && <small aria-label="około">≈ </small>}
+          {distanceLabel}
+        </strong>
+        <span>{description}</span>
       </div>
-      <div className={'rescue-view ' + (demo ? 'rescue-view-demo' : '')}>
-        {demo && <img src={source} alt="" className="rescue-backdrop" />}
-        {!demo && (
-          <video
-            ref={video}
-            autoPlay
-            playsInline
-            muted
-            className="rescue-backdrop"
-            aria-label="Obraz z tylnej kamery"
-          />
-        )}
-        <div className="rescue-screen-shade" />
-        <div className="rescue-camera-status">
-          <span className="rescue-stage">
-            <i />
-            {demo ? 'Symulacja AR' : sensors.visible ? 'Kamera na żywo' : 'Widok AR'}
+    </div>
+  );
+}
+function stepDirection(step: Step): Direction {
+  if (step.maneuver.type === 'arrive') return 'arrived';
+  if (step.maneuver.modifier?.includes('right')) return 'right';
+  if (step.maneuver.modifier?.includes('left')) return 'left';
+  return 'straight';
+}
+function InstructionButton({ onArrive }: Pick<ArProps, 'onArrive'>) {
+  return (
+    <button className="ar-instruction" type="button" onClick={onArrive}>
+      <Symbol name="heart" /> Instrukcja AED <Symbol name="next" size={16} />
+    </button>
+  );
+}
+function LiveAr({
+  target,
+  path,
+  steps,
+  onBack,
+  onArrive,
+  onRecording,
+  onRetry,
+}: {
+  target: Target;
+  path: readonly Coordinates[];
+  steps: readonly Step[];
+  onRecording: () => void;
+  onRetry: () => void;
+} & Pick<ArProps, 'onBack' | 'onArrive'>) {
+  const player = useRef<HTMLVideoElement>(null);
+  const sensors = useArSensors(player);
+  const route = useMemo(() => {
+    const points = [...path];
+    if (!points.length || distance(points.at(-1)!, target) > 1) points.push(target);
+    return tracedPath(points);
+  }, [path, target]);
+  const fix = sensors.fix;
+  const point = fix?.point;
+  const direct = point ? distance(point, target) : null;
+  const located = !!fix && fix.accuracy <= 35;
+  const progress = useMemo(
+    () => (point && path.length > 1 ? route.nearest(point) : null),
+    [point, path, route],
+  );
+  const onRoute = !!progress && progress.deviation <= 30;
+  const remaining = onRoute ? route.length - progress.offset : direct;
+  const maneuvers = useMemo(() => routeManeuvers(route, steps), [route, steps]);
+  const upcoming = onRoute ? maneuvers.find((m) => m.offset > progress.offset + 2) : undefined;
+  const maneuverMeters = upcoming && progress ? upcoming.offset - progress.offset : null;
+  const near =
+    !!fix &&
+    direct !== null &&
+    direct <= 18 &&
+    fix.accuracy <= 25 &&
+    (!onRoute || remaining! <= 30);
+  const finalLeg = direct !== null && direct <= 45 && (!onRoute || remaining! <= direct + 12);
+  const aim = onRoute && !finalLeg ? route.pointAt(progress.offset + 15) : target;
+  const heading = sensors.heading?.heading;
+  const delta =
+    point && heading !== undefined ? ((bearing(point, aim) - heading + 540) % 360) - 180 : null;
+  const tilt = sensors.heading?.tilt ?? 0;
+  const routeLost = !!progress && !onRoute;
+  const overlay =
+    sensors.camera === 'live' &&
+    located &&
+    delta !== null &&
+    Math.abs(tilt) <= 25 &&
+    !routeLost &&
+    !near;
+  const direction: Direction =
+    delta !== null && Math.abs(delta) > 30 ? (delta < 0 ? 'left' : 'right') : 'straight';
+  const label = near
+    ? 'AED w pobliżu'
+    : routeLost
+      ? 'Wróć do trasy'
+      : Math.abs(tilt) > 25
+        ? 'Skieruj aparat na wprost'
+        : direction === 'left'
+          ? 'Obróć się w lewo'
+          : direction === 'right'
+            ? 'Obróć się w prawo'
+            : finalLeg
+              ? 'Szukaj oznaczenia AED'
+              : onRoute
+                ? 'Idź prosto'
+                : 'Kierunek do AED';
+  const help = !fix
+    ? sensors.gpsMessage || 'Oczekiwanie na aktualną pozycję GPS.'
+    : !located
+      ? 'Dokładność GPS jest za niska, aby wskazać kierunek.'
+      : sensors.blocked
+        ? 'Brak dostępu do kompasu.'
+        : heading === undefined
+          ? 'Trzymaj telefon pionowo. Oczekiwanie na kompas.'
+          : routeLost
+            ? 'Otwórz mapę, aby sprawdzić dalszą drogę.'
+            : '';
+  return (
+    <section className="ar-hud" aria-label="Nawigacja w rzeczywistości rozszerzonej">
+      <video
+        className="ar-camera"
+        ref={player}
+        autoPlay
+        playsInline
+        muted
+        aria-label="Obraz z tylnego aparatu"
+      />
+      <HudHeader
+        onBack={onBack}
+        mode={sensors.camera === 'live' ? 'Aparat na żywo' : 'Tryb AR'}
+        {...(heading === undefined ? {} : { heading })}
+      />
+      {sensors.camera !== 'live' && (
+        <div className="ar-no-camera">
+          <span className="ar-camera-symbol">
+            <Symbol name="camera" size={30} />
           </span>
-          {heading !== undefined && (
-            <span className="rescue-compass">
-              {Math.round(heading) % 360}° {labels[Math.round(heading / 45) % 8]}
-            </span>
+          <h2>{sensors.camera === 'failed' ? 'Aparat niedostępny' : 'Otwieranie aparatu'}</h2>
+          <p>{sensors.cameraMessage}</p>
+          {sensors.camera === 'failed' && (
+            <button type="button" className="ar-glass ar-pill" onClick={onRetry}>
+              Spróbuj ponownie
+            </button>
           )}
         </div>
-        {showOverlay && <div className="rescue-cross" aria-hidden="true" />}
-        {showOverlay && inView && (
-          <div
-            className={'rescue-marker ' + (aligned ? 'is-aligned' : '')}
-            style={{ left: markerX + '%', top: markerY + '%' }}
-          >
-            <span className="rescue-marker-icon">
-              <Symbol name={finalLeg ? 'heart' : 'direction'} size={29} />
-            </span>
-            <span>{finalLeg ? 'Strefa AED' : onRoute ? 'Kierunek trasy' : 'Kierunek do AED'}</span>
+      )}
+      {sensors.camera === 'live' && located && !near && remaining !== null && (
+        <ManeuverCard
+          direction={upcoming ? stepDirection(upcoming.step) : 'arrived'}
+          distanceLabel={meters(maneuverMeters ?? remaining)}
+          description={
+            upcoming
+              ? stepText(upcoming.step).split(' · ')[0]!
+              : onRoute
+                ? 'Do celu'
+                : 'Do AED w linii prostej'
+          }
+        />
+      )}
+      {overlay && (
+        <RoadArrows
+          direction={
+            direction === 'straight' && upcoming && maneuverMeters !== null && maneuverMeters < 13
+              ? stepDirection(upcoming.step)
+              : direction
+          }
+          bend={direction === 'straight' ? Math.max(0, 1 - (maneuverMeters ?? 13) / 13) : 1}
+          offset={50 + Math.max(-30, Math.min(30, delta)) * 0.92}
+          tilt={tilt}
+        />
+      )}
+      {overlay && finalLeg && Math.abs(delta) < 24 && (
+        <div
+          className="ar-target-frame"
+          aria-label="Przybliżony kierunek AED"
+          style={{ left: 50 + delta * 1.45 + '%', top: 50 + tilt + '%' }}
+        />
+      )}
+      <div className="ar-hud-footer">
+        <div className="ar-live-caption">
+          <div className="ar-caption-line">
+            <strong>
+              {near || overlay || (sensors.camera === 'live' && located && heading !== undefined)
+                ? label
+                : 'Dojście do AED'}
+            </strong>
           </div>
-        )}
-        {showOverlay && !inView && Math.abs(tilt) <= 25 && (
-          <div className={'rescue-rotate ' + (delta < 0 ? 'is-left' : '')}>
-            <Symbol name={delta < 0 ? 'back' : 'next'} size={30} />
-            <span>Obróć się w {delta < 0 ? 'lewo' : 'prawo'}</span>
-          </div>
-        )}
-        {showOverlay && Math.abs(tilt) > 25 && (
-          <div className="rescue-rotate">Skieruj kamerę na wprost</div>
-        )}
-        {!demo && !sensors.visible && (
-          <div className="rescue-camera-empty">
-            <Symbol name="camera" size={33} />
-            <span>{active ? sensors.cameraMessage : 'Widok z kamery'}</span>
-          </div>
-        )}
-        {demo && (
-          <small className="rescue-photo-label">
-            {reference
-              ? 'Zdjęcie referencyjne · ' + reference.label
-              : 'Ilustracja poglądowa · ImageGen'}
-          </small>
-        )}
-      </div>
-      <div className="rescue-ar-panel">
-        <div className="rescue-route-meta">
-          <Symbol name={near ? 'heart' : 'direction'} size={18} />
-          {near
-            ? 'W pobliżu AED'
-            : remaining !== null
-              ? meters(remaining) + (onRoute ? ' trasy' : ' w linii prostej')
-              : 'Oczekiwanie na pozycję'}
-          {!demo && fix && <span>GPS ±{Math.round(fix.accuracy)} m</span>}
+          <p>
+            {near ? 'Odszukaj urządzenie i zabierz je do poszkodowanego.' : help || target.name}
+          </p>
         </div>
-        <h2>{target.name}</h2>
-        <p className="rescue-ar-hint">
-          {near
-            ? 'Odszukaj urządzenie i zanieś je do poszkodowanego. Gdy AED jest przy nim, otwórz instrukcję.'
-            : hint}
-        </p>
-        {!demo && active && desired !== null && heading === undefined && (
-          <small className="rescue-note">
-            Azymut do {onRoute ? 'kolejnego punktu' : 'celu'}: {Math.round(desired)}° od północy.
-          </small>
-        )}
-        {demo && !near && (
-          <label className="rescue-slider">
-            Obrót widoku{' '}
-            <input
-              type="range"
-              min="-95"
-              max="95"
-              value={yaw}
-              onChange={(e) => setYaw(Number(e.target.value))}
-              aria-label="Obrót widoku symulacji"
-            />
-            <span>{yaw}°</span>
-          </label>
-        )}
         {near ? (
-          <button type="button" className="rescue-primary" onClick={onArrive}>
-            Mam AED · otwórz instrukcję <Symbol name="next" />
-          </button>
-        ) : demo ? (
-          <button type="button" className="rescue-primary" onClick={() => setWalking((v) => !v)}>
-            <Symbol name={walking ? 'pause' : 'play'} size={17} />
-            {walking ? 'Zatrzymaj marsz' : 'Symuluj dojście'}
-          </button>
-        ) : !active ? (
-          <button type="button" className="rescue-primary" onClick={start}>
-            <Symbol name="camera" />
-            Włącz kamerę i czujniki
-          </button>
+          <InstructionButton onArrive={onArrive} />
         ) : (
-          <button type="button" className="rescue-primary" onClick={onBack}>
-            Pokaż mapę <Symbol name="next" />
-          </button>
+          heading === undefined &&
+          needsCompassPermission() && (
+            <button type="button" className="ar-glass ar-pill" onClick={onRetry}>
+              Włącz kompas
+            </button>
+          )
         )}
-        {!near && (
-          <button type="button" className="rescue-link" onClick={onArrive}>
-            Mam już AED
-          </button>
-        )}
-        {reference && (
-          <a className="rescue-reference" href={reference.url} target="_blank" rel="noreferrer">
-            {reference.credit}
+        <button type="button" className="ar-record-link" onClick={onRecording}>
+          <Symbol name="play" size={15} /> Nagranie · Chmielna 21
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function RecordedWalk({ onBack, onArrive }: Pick<ArProps, 'onBack' | 'onArrive'>) {
+  const player = useRef<HTMLVideoElement>(null);
+  const [walk, setWalk] = useState<Walk | null>(null);
+  const [problem, setProblem] = useState(false);
+  const [paused, setPaused] = useState(true);
+  const [ended, setEnded] = useState(false);
+  const [time, setTime] = useState(0);
+  useEffect(() => {
+    const cancel = new AbortController();
+    const element = player.current;
+    void fetch(asset('media/aed-walk.json'), { signal: cancel.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error();
+        const data = walkSchema.parse(await response.json());
+        if (!cancel.signal.aborted) setWalk(data);
+      })
+      .catch(() => {
+        if (!cancel.signal.aborted) setProblem(true);
+      });
+    return () => {
+      cancel.abort();
+      element?.pause();
+    };
+  }, []);
+  const cueIndex = walk?.cues.findLastIndex((c) => c.start <= time) ?? -1;
+  const cue = walk?.cues[cueIndex];
+  const nextCue = walk?.cues[cueIndex + 1];
+  const elapsed =
+    cue && nextCue ? Math.max(0, Math.min(1, (time - cue.start) / (nextCue.start - cue.start))) : 0;
+  const maneuverMeters = cue ? Math.round(cue.meters + (cue.nextMeters - cue.meters) * elapsed) : 0;
+  const arrived = !problem && cue?.direction === 'arrived';
+  return (
+    <section className="ar-hud" aria-label="Nagranie przejścia do AED">
+      <video
+        ref={player}
+        className="ar-camera"
+        src={asset('media/aed-walk.mp4')}
+        aria-label="Film przejścia do AED"
+        playsInline
+        autoPlay
+        muted
+        preload="auto"
+        onLoadedData={(e) => {
+          void e.currentTarget.play().catch(() => setPaused(true));
+        }}
+        onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+        onPlay={() => {
+          setPaused(false);
+          setEnded(false);
+        }}
+        onPause={() => setPaused(true)}
+        onEnded={() => setEnded(true)}
+        onError={() => setProblem(true)}
+      />
+      <HudHeader onBack={onBack} mode="Nagranie przejścia" />
+      {cue && !arrived && !problem && (
+        <>
+          <ManeuverCard
+            direction={cue.upcomingDirection}
+            approximate
+            distanceLabel={meters(maneuverMeters)}
+            description={cue.maneuver}
+          />
+          <RoadArrows
+            direction={cue.direction === 'straight' ? cue.upcomingDirection : cue.direction}
+            bend={
+              cue.direction === 'straight'
+                ? Math.min(0.75, Math.max(0, 1 - maneuverMeters / 14))
+                : 1
+            }
+            paused={paused}
+          />
+        </>
+      )}
+      <div className="ar-hud-footer">
+        <div className="ar-live-caption">
+          <div className="ar-caption-line">
+            <strong>
+              {problem ? 'Nagranie niedostępne' : cue?.text || 'Wczytywanie przejścia…'}
+            </strong>
+            {walk && !problem && (
+              <button
+                type="button"
+                className="ar-glass ar-playback"
+                aria-label={
+                  ended ? 'Odtwórz ponownie' : paused ? 'Wznów nagranie' : 'Zatrzymaj nagranie'
+                }
+                onClick={() => {
+                  if (!player.current) return;
+                  if (ended) player.current.currentTime = 0;
+                  if (paused || ended) void player.current.play().catch(() => setProblem(true));
+                  else player.current.pause();
+                }}
+              >
+                <Symbol name={paused || ended ? 'play' : 'pause'} size={16} />
+              </button>
+            )}
+          </div>
+          {walk && <p>{walk.destination}</p>}
+        </div>
+        {arrived && <InstructionButton onArrive={onArrive} />}
+        {walk && (
+          <a className="ar-source" href={walk.sourceUrl} target="_blank" rel="noreferrer">
+            {walk.attribution}
           </a>
         )}
       </div>
     </section>
+  );
+}
+const noPath: readonly Coordinates[] = [];
+const noSteps: readonly Step[] = [];
+export function ArGuide({
+  target,
+  path = noPath,
+  steps = noSteps,
+  onBack,
+  onArrive,
+  playRecording = false,
+  onOpenRecording,
+}: ArProps) {
+  const [recording, setRecording] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  if (recording || playRecording || !target)
+    return <RecordedWalk onBack={onBack} onArrive={onArrive} />;
+  return (
+    <LiveAr
+      key={attempt}
+      target={target}
+      path={path}
+      steps={steps}
+      onBack={onBack}
+      onArrive={onArrive}
+      onRecording={onOpenRecording ?? (() => setRecording(true))}
+      onRetry={() => {
+        void requestArCompass();
+        setAttempt((a) => a + 1);
+      }}
+    />
   );
 }

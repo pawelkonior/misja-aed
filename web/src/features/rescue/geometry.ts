@@ -1,3 +1,4 @@
+import type { Step } from '../../../map/types';
 import { distance } from '../../../map/core';
 export { bearing, distance } from '../../../map/core';
 export type Coordinates = { lat: number; lon: number };
@@ -80,4 +81,13 @@ export function cameraOrientation(event: CompassEvent) {
   const north =
     -Math.sin(alpha) * Math.sin(gamma) + Math.cos(alpha) * Math.sin(beta) * Math.cos(gamma);
   return { heading: (Math.atan2(east, north) / rad + 360) % 360, tilt };
+}
+
+export function routeManeuvers(route: ReturnType<typeof tracedPath>, steps: readonly Step[]) {
+  return steps
+    .filter((step) => step.maneuver.type !== 'depart')
+    .map((step) => {
+      const [lon, lat] = step.maneuver.location;
+      return { offset: route.nearest({ lat, lon }).offset, step };
+    });
 }
