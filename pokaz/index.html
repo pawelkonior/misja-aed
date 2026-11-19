@@ -19,8 +19,9 @@
         background: #f5f6fa;
       }
       main {
-        max-width: 1120px;
-        padding: clamp(20px, 4vw, 50px);
+        --gutter: clamp(12px, 2vw, 28px);
+        max-width: 1600px;
+        padding: clamp(10px, 1.6vh, 18px) var(--gutter);
         margin: auto;
       }
       header,
@@ -28,7 +29,16 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 16px;
+        gap: 8px 16px;
+        flex-wrap: wrap;
+      }
+      header {
+        margin-bottom: 10px;
+      }
+      .film-heading {
+        display: flex;
+        align-items: baseline;
+        gap: 4px 14px;
         flex-wrap: wrap;
       }
       small {
@@ -36,23 +46,37 @@
         font-weight: 600;
       }
       h1 {
-        margin: 16px 0;
+        margin: 0;
         letter-spacing: -0.04em;
-        font-size: clamp(32px, 5vw, 56px);
-        line-height: 1;
+        font-size: clamp(26px, 3.3vw, 40px);
+        line-height: 1.1;
       }
       video {
+        display: block;
         width: 100%;
         aspect-ratio: 16/9;
         background: #142238;
-        border-top: 4px solid #d52a47;
       }
       a {
         color: #185993;
         text-underline-offset: 4px;
       }
       footer {
-        margin-top: 15px;
+        margin-top: 10px;
+      }
+      @media (min-width: 760px) {
+        main {
+          max-width: min(1600px, calc((100svh - 120px) * 16 / 9 + 2 * var(--gutter)));
+        }
+      }
+      @media (max-width: 759px) {
+        main {
+          padding-inline: 0;
+        }
+        header,
+        footer {
+          padding-inline: var(--gutter);
+        }
       }
       :focus-visible {
         outline: 3px solid #256fc7;
@@ -62,20 +86,25 @@
   </head>
   <body>
     <main>
-      <header><small>Azeno Hi · HackNation 2026</small><a href="../">Otwórz aplikację</a></header>
-      <h1>Misja AED</h1>
+      <header>
+        <div class="film-heading">
+          <h1>Misja AED</h1>
+          <small>Azeno Hi · 60 s bez dźwięku</small>
+        </div>
+        <a href="../">Otwórz aplikację</a>
+      </header>
       <video
         controls
         playsinline
         preload="metadata"
-        poster="../materialy/plakat.jpg?v=9e67a7aeb0afe552c42b210470ebc209bc8c51e5"
-        aria-label="Misja AED. Film z polskim lektorem i napisami, 60 sekund"
+        poster="../materialy/plakat.jpg?v=966e2d6d78c40b926057fb4b053d6402ac0392d9"
+        aria-label="Misja AED. Pokaz aplikacji z planszami po polsku, 60 sekund bez dźwięku"
       >
-        <source src="../materialy/Misja-AED-60s.mp4?v=19c9f5f037770857de06d5a576a1bafc6bbffce2" type="video/mp4" />
-        <a href="../materialy/Misja-AED-60s.mp4?v=19c9f5f037770857de06d5a576a1bafc6bbffce2">Pobierz film MP4</a>
+        <source src="../materialy/Misja-AED-60s.mp4?v=3e888a405006b250465106cc8d65578b6cc3d888" type="video/mp4" />
+        <a href="../materialy/Misja-AED-60s.mp4?v=3e888a405006b250465106cc8d65578b6cc3d888">Pobierz film MP4</a>
       </video>
       <footer>
-        <a href="../materialy/Misja-AED.pdf?v=59e73b4bc8c87319f7005701c7f89c851c18bbcd">Prezentacja Azeno Hi (PDF)</a>
+        <a href="../materialy/Misja-AED.pdf?v=5db911ab50d5786983b5518bf2fc29c8756a7ea9">Prezentacja Azeno Hi (PDF)</a>
         <a href="https://github.com/pawelkonior/misja-aed/blob/main/docs/media.md">Autorzy nagrań i zdjęć</a>
         <a href="https://github.com/pawelkonior/misja-aed">Kod i dane projektu</a>
       </footer>
