@@ -51,6 +51,7 @@ export interface MapSession {
     nearest: { target: AedTarget; meters: number }[];
     usedFallback: boolean;
   };
+  startReturn(from?: GeoPoint): boolean;
   setActive(active: boolean): void;
   destroy(): void;
 }

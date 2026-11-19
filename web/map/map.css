@@ -562,3 +562,12 @@
   line-height: 1.25;
   margin-top: 2px;
 }
+.am-saved-start {
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 28%;
+  background: #6541a2;
+  color: white;
+  box-shadow: 0 2px 5px #36265155;
+}

@@ -104,6 +104,36 @@ test('walking directions offer the call once per trip and cancellation keeps the
   ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Zadzwoń' })).toHaveCount(0);
 });
+test('returns from the AED to the original start without triggering a second emergency call', async ({
+  context,
+  page,
+}) => {
+  await context.setGeolocation({ latitude: widok.lat, longitude: widok.lon, accuracy: 5 });
+  await context.grantPermissions(['geolocation']);
+  await page.goto('./#mapa');
+  await page.locator('.am-row').filter({ hasText: 'Dom towarowy Bracia Jabłkowscy' }).click();
+  await page.getByRole('button', { name: /Tryb AR/ }).click();
+  await page.getByRole('button', { name: 'Anuluj' }).click();
+  await context.setGeolocation({ latitude: 52.231656, longitude: 21.015873, accuracy: 5 });
+  await expect(page.getByRole('button', { name: 'Wróć do punktu startu' })).toHaveCount(0);
+  await context.setGeolocation({
+    latitude: chmielnaAED.lat,
+    longitude: chmielnaAED.lon,
+    accuracy: 4,
+  });
+  await page.getByRole('button', { name: 'Wróć do punktu startu' }).click();
+  await expect(page.getByRole('heading', { name: 'Trasa powrotna' })).toBeVisible();
+  await expect(page.locator('.am-duration')).toContainText('291 m');
+  await expect(page.locator('.am-steps')).toContainText('Skręć w prawo · Widok');
+  await expect(page.locator('.am-leg-return')).toHaveCount(1);
+  await expect(page.getByRole('timer')).toHaveCount(0);
+  await context.setGeolocation({ latitude: widok.lat, longitude: widok.lon, accuracy: 4 });
+  await expect(page.getByRole('heading', { name: 'Jesteś przy punkcie startu' })).toBeVisible();
+  await page.getByRole('button', { name: 'Instrukcja AED' }).click();
+  await expect(page.getByRole('heading', { name: 'Wezwij pomoc' })).toBeVisible();
+  await expect(page.getByRole('timer')).toHaveCount(0);
+});
+
 test('opens the recorded street walk after a location refusal without marking a location', async ({
   page,
 }) => {

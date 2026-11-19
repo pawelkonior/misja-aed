@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 import { mountAedMap } from '../../map/index.js';
-import type { MapSession, NavigationPayload } from '../../map/index.js';
+import type { GeoPoint, MapSession, NavigationPayload } from '../../map/index.js';
 import { AboutView, DataView, Home, More, WalletNav } from '../features/dashboard/Home';
 import { ArGuide, requestArCompass } from '../features/rescue/ArGuide';
 import { EmergencyCall, type CallRequest } from '../features/rescue/EmergencyCall';
@@ -14,12 +14,14 @@ function go(page: Page) {
 }
 
 function MapScreen({
+  sessionRef,
   visible,
   onOpenAR,
   onStartGuidance,
   onEndGuidance,
   onOpenRecording,
 }: {
+  sessionRef: RefObject<MapSession | null>;
   visible: boolean;
   onOpenAR: (trip: NavigationPayload) => void;
   onStartGuidance: (trip: NavigationPayload) => void;
@@ -27,10 +29,9 @@ function MapScreen({
   onOpenRecording: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
-  const session = useRef<MapSession | null>(null);
   useEffect(() => {
-    if (visible && root.current && !session.current) {
-      session.current = mountAedMap(root.current, {
+    if (visible && root.current && !sessionRef.current) {
+      sessionRef.current = mountAedMap(root.current, {
         onBack: () => go('home'),
         onOpenAR,
         onOpenRecording,
@@ -39,19 +40,20 @@ function MapScreen({
         onArrive: () => go('guide'),
       });
     }
-    session.current?.setActive(visible);
-  }, [visible, onOpenAR, onStartGuidance, onEndGuidance, onOpenRecording]);
+    sessionRef.current?.setActive(visible);
+  }, [sessionRef, visible, onOpenAR, onStartGuidance, onEndGuidance, onOpenRecording]);
   useEffect(
     () => () => {
-      session.current?.destroy();
-      session.current = null;
+      sessionRef.current?.destroy();
+      sessionRef.current = null;
     },
-    [],
+    [sessionRef],
   );
   return <div ref={root} hidden={!visible} className="mobile-map" />;
 }
 
 export function App() {
+  const mapSession = useRef<MapSession | null>(null);
   const [route, setRoute] = useState<Page>(currentPage);
   const [trip, setTrip] = useState<NavigationPayload | null>(null);
   const [callRequest, setCallRequest] = useState<CallRequest | null>(null);
@@ -82,6 +84,9 @@ export function App() {
       position: selected.mode === 'live' ? selected.position : null,
     });
   }, []);
+  const returnFromAr = useCallback((fix: GeoPoint) => {
+    if (mapSession.current?.startReturn(fix)) go('map');
+  }, []);
   const dismissCall = useCallback(() => setCallRequest(null), []);
   const openRecording = useCallback(() => {
     setCallRequest(null);
@@ -97,6 +102,7 @@ export function App() {
       {!inJourney && <WalletNav key={page} page={page} />}
       {inJourney && (
         <MapScreen
+          sessionRef={mapSession}
           visible={page === 'map'}
           onOpenAR={openAR}
           onStartGuidance={offerCall}
@@ -110,6 +116,7 @@ export function App() {
           origin={trip.mode === 'live' ? trip.position : null}
           path={trip.path}
           steps={trip.route?.steps ?? []}
+          onReturn={returnFromAr}
           onOpenRecording={openRecording}
           onBack={() => go('map')}
           onArrive={() => go('guide')}

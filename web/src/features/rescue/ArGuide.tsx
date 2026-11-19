@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { asset, meters, stepText } from '../../../map/core';
 import { bearing, distance, tracedPath, routeManeuvers } from './geometry';
 import type { Coordinates } from './geometry';
-import type { Step } from '../../../map/types';
+import type { GeoPoint, Step } from '../../../map/types';
 import { RoadArrows } from './RoadArrows';
 import type { Direction } from './RoadArrows';
 import { Symbol } from './Symbol';
@@ -20,6 +20,7 @@ export interface ArProps {
   steps?: readonly Step[];
   playRecording?: boolean;
   onOpenRecording?: () => void;
+  onReturn?: (fix: GeoPoint) => void;
   onBack: () => void;
   onArrive: () => void;
 }
@@ -130,6 +131,7 @@ function LiveAr({
   onBack,
   onArrive,
   onRecording,
+  onReturn,
   onRetry,
 }: {
   target: Target;
@@ -137,7 +139,7 @@ function LiveAr({
   steps: readonly Step[];
   onRecording: () => void;
   onRetry: () => void;
-} & Pick<ArProps, 'onBack' | 'onArrive'>) {
+} & Pick<ArProps, 'onBack' | 'onArrive' | 'onReturn'>) {
   const player = useRef<HTMLVideoElement>(null);
   const sensors = useArSensors(player);
   const route = useMemo(() => {
@@ -281,7 +283,18 @@ function LiveAr({
           </p>
         </div>
         {near ? (
-          <InstructionButton onArrive={onArrive} />
+          <>
+            <InstructionButton onArrive={onArrive} />
+            {onReturn && fix && (
+              <button
+                type="button"
+                className="ar-glass ar-return"
+                onClick={() => onReturn({ ...fix.point, accuracy: fix.accuracy })}
+              >
+                <Symbol name="direction" size={17} /> Wróć do punktu startu
+              </button>
+            )}
+          </>
         ) : (
           heading === undefined &&
           needsCompassPermission() && (
@@ -416,6 +429,7 @@ export function ArGuide({
   steps = noSteps,
   onBack,
   onArrive,
+  onReturn,
   playRecording = false,
   onOpenRecording,
 }: ArProps) {
@@ -431,6 +445,7 @@ export function ArGuide({
       steps={steps}
       onBack={onBack}
       onArrive={onArrive}
+      {...(onReturn ? { onReturn } : {})}
       onRecording={onOpenRecording ?? (() => setRecording(true))}
       onRetry={() => {
         void requestArCompass();

@@ -35,6 +35,7 @@ const icons = {
   cam: '<path d="M3 8V5h4m10 0h4v4m0 6v4h-4m-10 0H3v-4"/><circle cx="12" cy="12" r="4"/>',
   photo:
     '<rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="9" cy="10" r="1.4"/><path d="m5 17 5-4 3 2 3-4 4 6"/>',
+  flag: '<path d="M5 21V3m0 1h13l-3 4 3 4H5"/>',
   list: '<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
   pin: '<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0z"/><circle cx="12" cy="10" r="2"/>',
   check: '<path d="m4 13 5 5L20 6"/>',
@@ -103,7 +104,8 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
   let origin: NavigationPayload['mode'] = 'live';
   let selected: AedTarget | null = null;
   let route: RouteState | null = null;
-  let view: 'list' | 'picker' | 'destination' | 'directions' = 'list';
+  let view: 'list' | 'picker' | 'destination' | 'directions' | 'return' = 'list';
+  let savedStart: { point: GeoPoint; mode: NavigationPayload['mode'] } | null = null;
   let active = options.active ?? true;
   let destroyed = false;
   let guiding = false;
@@ -189,6 +191,19 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
           .addTo(markerLayer);
       }
     }
+    if (view === 'return' && savedStart)
+      L.marker(latlng(savedStart.point), {
+        title: 'Zapisany punkt startu',
+        alt: 'Zapisany punkt startu',
+        icon: L.divIcon({
+          className: 'am-saved-start',
+          iconSize: [32, 32],
+          iconAnchor: [16, 30],
+          html: svg('flag', 18),
+        }),
+        keyboard: false,
+        zIndexOffset: 450,
+      }).addTo(markerLayer);
     if (userMarker) userMarker.remove();
     userMarker = null;
     if (!position || view === 'picker') return;
@@ -319,12 +334,19 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
       '</figure>'
     );
   }
+  const instructionButton = () =>
+    '<button type="button" class="am-primary" data-act="arrive">' +
+    svg('heart') +
+    ' Instrukcja AED</button>';
   function routeActions() {
     if (arrived)
       return (
-        '<button type="button" class="am-primary" data-act="arrive">' +
-        svg('heart') +
-        ' Instrukcja AED</button>'
+        instructionButton() +
+        (savedStart
+          ? '<button type="button" class="am-secondary am-full" data-act="return">' +
+            svg('flag', 18) +
+            ' Wróć do punktu startu</button>'
+          : '')
       );
     if (!route) {
       return routeError
@@ -370,9 +392,16 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
     const minutes =
       route &&
       Math.max(1, Math.round((route.duration * remaining) / Math.max(1, route.distance) / 60));
-    const heading = arrived ? 'Jesteś przy celu' : selected.name;
+    const returning = view === 'return';
+    const heading = returning
+      ? arrived
+        ? 'Jesteś przy punkcie startu'
+        : 'Zapisany punkt startu'
+      : arrived
+        ? 'Jesteś przy celu'
+        : selected.name;
     const stepList =
-      view === 'directions' && route && progress
+      (view === 'directions' || returning) && route && progress
         ? '<ol class="am-steps">' +
           route.steps
             .map(
@@ -382,7 +411,11 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
                 '><span class="am-step-number">' +
                 (index + 1) +
                 '</span><span>' +
-                esc(stepText(step)) +
+                esc(
+                  returning && step.maneuver.type === 'arrive'
+                    ? 'Dotrzesz do zapisanego punktu'
+                    : stepText(step),
+                ) +
                 '</span>' +
                 (step.distance > 0 ? '<small>' + meters(step.distance) + '</small>' : '') +
                 '</li>',
@@ -403,22 +436,30 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
           meters(remaining) +
           '</div>'
         : '') +
-      (selected.address
-        ? '<p class="am-address">' + svg('pin', 14) + esc(selected.address) + '</p>'
-        : '') +
-      (selected.description && selected.description !== selected.address
-        ? '<p class="am-description">' + esc(selected.description) + '</p>'
-        : '') +
-      '<div class="am-badges">' +
-      accessTag(selected) +
-      (selected.hours ? '<span>' + esc(selected.hours) + '</span>' : '') +
-      '</div>' +
+      (returning && savedStart
+        ? '<p class="am-description">' +
+          (savedStart.mode === 'manual'
+            ? 'Punkt startowy wskazany ręcznie.'
+            : 'Miejsce zapisane z GPS przy rozpoczęciu prowadzenia.') +
+          '</p>'
+        : (selected.address
+            ? '<p class="am-address">' + svg('pin', 14) + esc(selected.address) + '</p>'
+            : '') +
+          (selected.description && selected.description !== selected.address
+            ? '<p class="am-description">' + esc(selected.description) + '</p>'
+            : '') +
+          '<div class="am-badges">' +
+          accessTag(selected) +
+          (selected.hours ? '<span>' + esc(selected.hours) + '</span>' : '') +
+          '</div>') +
       (locationNotice
         ? '<p role="status" class="am-message">' + esc(locationNotice) + '</p>'
         : '') +
-      routeActions() +
+      (returning
+        ? (route || arrived ? '' : routeActions()) + instructionButton()
+        : routeActions()) +
       stepList +
-      targetPhoto() +
+      (returning ? '' : targetPhoto()) +
       (view === 'directions'
         ? recordingLink() +
           '<p class="am-credit">Trasa piesza · <a href="https://routing.openstreetmap.de/about.html" rel="noopener" target="_blank">FOSSGIS / OpenStreetMap</a></p>'
@@ -440,11 +481,13 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
   }
   function render() {
     $('.am-head h1').textContent =
-      view === 'picker'
-        ? 'Punkt startowy'
-        : view === 'directions'
-          ? 'Wskazówki dojścia'
-          : 'Defibrylatory w pobliżu';
+      view === 'return'
+        ? 'Trasa powrotna'
+        : view === 'picker'
+          ? 'Punkt startowy'
+          : view === 'directions'
+            ? 'Wskazówki dojścia'
+            : 'Defibrylatory w pobliżu';
     $('.am-aim').hidden = view !== 'picker';
     panel.innerHTML = view === 'list' ? list() : view === 'picker' ? picker() : details();
   }
@@ -461,6 +504,7 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
     route = null;
     routeError = false;
     endGuidance();
+    savedStart = null;
     arrived = false;
     driftCount = 0;
     photoIndex = 0;
@@ -489,18 +533,23 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
       path: route?.coordinates.map(([lon, lat]) => ({ lat, lon })) ?? [],
     };
   }
+  function destination() {
+    return view === 'return' ? savedStart?.point : selected;
+  }
   function atTarget() {
+    const target = destination();
     return !!(
       origin === 'live' &&
       gpsStatus === 'ready' &&
       position &&
-      selected &&
-      distance(position, selected) <= 20 &&
+      target &&
+      distance(position, target) <= 20 &&
       (position.accuracy ?? Infinity) <= 25
     );
   }
   async function navigate(reroute = false) {
-    if (!selected || !position) return;
+    const target = destination();
+    if (!target || !position) return;
     request?.abort();
     const req = new AbortController();
     request = req;
@@ -508,26 +557,26 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
     routeError = false;
     lastRequest = Date.now();
     driftCount = 0;
-    const target = selected;
     if (!reroute) render();
     try {
       const calculated = await walkingRoute(position, target, req.signal);
-      if (destroyed || request !== req || selected !== target) return;
+      if (destroyed || request !== req || destination() !== target) return;
       route = calculated;
       arrived = atTarget();
       routeLine?.remove();
       routeLine = L.polyline(
         calculated.coordinates.map(([lon, lat]): L.LatLngTuple => [lat, lon]),
-        { color: '#065bba', weight: 5, opacity: 0.95, lineCap: 'round' },
+        {
+          color: view === 'return' ? '#6541a2' : '#065bba',
+          className: view === 'return' ? 'am-leg-return' : 'am-leg-outbound',
+          weight: 5,
+          opacity: 0.95,
+          lineCap: 'round',
+        },
       ).addTo(map);
-      if (!reroute)
-        map.fitBounds(routeLine.getBounds().extend(latlng(position)).extend(latlng(target)), {
-          padding: [26, 32],
-          maxZoom: 18,
-          animate: false,
-        });
+      if (!reroute && active) fitRoute();
       const state = payload();
-      if (state) options.onNavigate?.(state);
+      if (state && view !== 'return') options.onNavigate?.(state);
     } catch {
       if (destroyed || request !== req) return;
       routeLine?.remove();
@@ -541,6 +590,36 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
         render();
       }
     }
+  }
+  function fitRoute() {
+    const target = destination();
+    if (routeLine && position && target)
+      map.fitBounds(routeLine.getBounds().extend(latlng(position)).extend(latlng(target)), {
+        padding: [26, 32],
+        maxZoom: 18,
+        animate: false,
+      });
+  }
+  function startReturn(from?: GeoPoint) {
+    if (!savedStart || !selected || view === 'return') return false;
+    if (from) {
+      if ((from.accuracy ?? Infinity) > 25 || distance(from, selected) > 20) return false;
+      position = { ...from };
+      origin = 'live';
+      gpsStatus = 'ready';
+      locationNotice = '';
+    }
+    if (!atTarget()) return false;
+    view = 'return';
+    routeLine?.remove();
+    routeLine = null;
+    route = null;
+    arrived = atTarget();
+    updateMarkers();
+    render();
+    if (active) container.scrollIntoView({ block: 'start' });
+    void navigate();
+    return true;
   }
   function updateNearest() {
     nearest = position ? nearby(points, position, 'all') : [];
@@ -561,7 +640,8 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
         if (driftCount >= 2 && !request && Date.now() - lastRequest > 15000) void navigate(true);
       }
     }
-    if (recenter && (!selected || guiding)) map.setView(latlng(next), 16, { animate: false });
+    if (view !== 'return' && recenter && (!selected || guiding))
+      map.setView(latlng(next), 16, { animate: false });
     if (guiding && view === 'directions') map.panTo(latlng(next), { animate: false });
     render();
   }
@@ -589,7 +669,7 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
       (fix) => {
         if (destroyed || ticket !== gpsTicket || !active) return;
         const switching = origin === 'manual';
-        if (switching) {
+        if (switching && !savedStart) {
           clearRoute();
           selected = null;
           view = 'list';
@@ -609,6 +689,10 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
           },
           first,
         );
+        if (switching && savedStart && selected) {
+          updateMarkers();
+          if (!arrived) void navigate();
+        }
         first = false;
       },
       (err) => {
@@ -697,6 +781,7 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
     if (!route || !state) return;
     if (!guiding) {
       guiding = true;
+      savedStart ??= { point: { ...state.position }, mode: state.mode };
       options.onStartGuidance?.(state);
     }
     if (ar) options.onOpenAR?.(state);
@@ -773,9 +858,12 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
       case 'ar':
         startGuidance(true);
         break;
+      case 'return':
+        startReturn();
+        break;
       case 'arrive': {
         const state = payload();
-        if (arrived && state) options.onArrive?.(state);
+        if ((arrived || view === 'return') && state) options.onArrive?.(state);
         break;
       }
       case 'photo': {
@@ -833,6 +921,7 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
       nearest,
       usedFallback: false,
     }),
+    startReturn,
     setActive(next) {
       if (active === next || destroyed) return;
       active = next;
@@ -841,6 +930,7 @@ export function mountAedMap(container: HTMLElement, options: MapOptions = {}): M
         return;
       }
       map.invalidateSize({ pan: false });
+      if (view === 'return') fitRoute();
       if (origin === 'live' && view !== 'picker') gps();
     },
     destroy() {

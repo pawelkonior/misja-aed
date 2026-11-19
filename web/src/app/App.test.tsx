@@ -30,6 +30,7 @@ const selected: NavigationPayload = {
   path: [{ lat: 52.001, lon: 21 }, point],
 };
 const destroy = vi.fn<() => void>();
+const startReturn = vi.fn<MapSession['startReturn']>();
 const setActive = vi.fn<(visible: boolean) => void>();
 function options(): MapOptions {
   const result = vi.mocked(mountAedMap).mock.lastCall?.[1];
@@ -42,6 +43,7 @@ beforeEach(() => {
   vi.mocked(mountAedMap).mockReturnValue({
     destroy,
     setActive,
+    startReturn,
     getState: vi.fn<MapSession['getState']>(),
   });
 });
@@ -80,6 +82,23 @@ it('offers an explicit phone handoff with cancellation when guidance starts and 
   await waitFor(() => expect(setActive).toHaveBeenLastCalledWith(true));
   expect(mountAedMap).toHaveBeenCalledOnce();
 });
+it('opens the return map from live AR only after the map accepts the fix', async () => {
+  window.history.replaceState(null, '', '/#mapa');
+  render(<App />);
+  act(() => options().onOpenAR?.(selected));
+  await screen.findByRole('region', { name: 'Aparat na żywo' });
+  const fromAr = vi.mocked(ArGuide).mock.lastCall?.[0].onReturn;
+  const fix = { lat: 52, lon: 21, accuracy: 5 };
+  startReturn.mockReturnValueOnce(false).mockReturnValueOnce(true);
+  act(() => fromAr?.(fix));
+  expect(window.location.hash).toBe('#ar');
+  act(() => fromAr?.(fix));
+  await waitFor(() => expect(setActive).toHaveBeenLastCalledWith(true));
+  expect(startReturn).toHaveBeenLastCalledWith(fix);
+  expect(window.location.hash).toBe('#mapa');
+  expect(screen.queryByRole('timer')).toBeNull();
+});
+
 it('lets the person access the instruction once the map reports a confirmed arrival', async () => {
   window.history.replaceState(null, '', '/#mapa');
   render(<App />);

@@ -321,3 +321,12 @@
     min-height: 44px;
   }
 }
+.ar-hud .ar-return {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  font-weight: 650;
+}

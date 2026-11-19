@@ -256,8 +256,15 @@ describe('live mobile AR', () => {
   it('opens the rear camera on entry, tracks live orientation and releases all hardware on exit', async () => {
     const device = mobileBrowser();
     void requestArCompass();
+    const onReturn = vi.fn<(fix: { lat: number; lon: number; accuracy?: number }) => void>();
     const ui = render(
-      <ArGuide target={target} origin={target} path={[origin, target]} {...actions} />,
+      <ArGuide
+        target={target}
+        origin={target}
+        path={[origin, target]}
+        {...actions}
+        onReturn={onReturn}
+      />,
     );
     await settle();
     expect(device.permission).toHaveBeenCalledWith(true);
@@ -302,6 +309,8 @@ describe('live mobile AR', () => {
     device.fix(target, 5);
     expect(screen.getByText('AED w pobliżu')).toBeVisible();
     expect(actions.onArrive).not.toHaveBeenCalled();
+    click('Wróć do punktu startu');
+    expect(onReturn).toHaveBeenCalledWith({ lat: target.lat, lon: target.lon, accuracy: 5 });
     click('Instrukcja AED');
     expect(actions.onArrive).toHaveBeenCalledOnce();
     void act(() => device.track.dispatchEvent(event('ended')));

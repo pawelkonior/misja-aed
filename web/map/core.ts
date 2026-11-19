@@ -1,4 +1,5 @@
 import rawDemoRoute from './demo-route.json';
+import rawReturnRoute from './chmielna-widok.json';
 import { z } from 'zod';
 import type { AedPhoto, AedTarget, GeoPoint, RouteState, Step } from './types';
 const coord = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
@@ -53,9 +54,14 @@ const routeSchema = z.object({
     )
     .min(1),
 });
-const demoRoute = z
-  .object({ coordinates: coords, distance: nonnegative, duration: nonnegative, steps })
-  .parse(rawDemoRoute);
+const savedRoute = z.object({
+  coordinates: coords,
+  distance: nonnegative,
+  duration: nonnegative,
+  steps,
+});
+const demoRoute = savedRoute.parse(rawDemoRoute);
+const returnRoute = savedRoute.parse(rawReturnRoute);
 
 export const asset = (path: string) => import.meta.env.BASE_URL + path;
 export const DEMO_POSITION = { lat: 52.23123, lon: 21.01416 };
@@ -174,10 +180,12 @@ export function nearby(points: AedTarget[], position: GeoPoint, filter: string) 
 
 export async function walkingRoute(
   position: GeoPoint,
-  target: AedTarget,
+  target: GeoPoint & { id?: string },
   signal: AbortSignal,
 ): Promise<RouteState> {
   if (target.id === sourceId && distance(position, DEMO_POSITION) < 3) return demoRoute;
+  if (distance(target, DEMO_POSITION) < 3 && distance(position, DEMO_TARGET) < 3)
+    return returnRoute;
   const coordinates = [position, target]
     .map((p) => p.lon.toFixed(6) + ',' + p.lat.toFixed(6))
     .join(';');
