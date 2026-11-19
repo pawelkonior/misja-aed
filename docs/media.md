@@ -1,10 +1,10 @@
 # Materiały zespołu i odtwarzanie filmu
 
-Film korzysta z technologii poprzedniego projektu „Zbuduj prototyp Risk Red Team”. Deterministyczna scena Canvas 2D, kontrakt `window.__anim.seek(t)`, Chromium i FFmpeg składają 1800 klatek w MP4. Widziane na ekranie telefonu sekwencje pochodzą z rzeczywistych interakcji Playwright z aplikacją. Osobne źródło narracji umożliwia odtworzenie filmu bez dostępu do usługi głosowej.
+Film korzysta z technologii poprzedniego projektu „Zbuduj prototyp Risk Red Team”. Deterministyczna scena Canvas 2D, kontrakt `window.__anim.seek(t)`, Chromium i FFmpeg składają 1800 klatek w MP4. Pełnoekranowe ujęcia rejestrują prawdziwe interakcje z aplikacją w Chromium. Kamera montażowa podąża za kursorem. Podświetlenia słów prowadzą przez wybór punktu, fotografie, nawigację, animację elektrod i eksport. Osobne źródło narracji umożliwia odtworzenie filmu bez dostępu do usługi głosowej.
 
 1. Zbuduj aplikację w `web/` poleceniem `npm ci && npm run build` i udostępnij katalog `dist`, np. przez `python3 -m http.server 5196 --bind 127.0.0.1 --directory dist`.
-2. Z katalogu głównego repozytorium uruchom `AED_DEMO_URL=http://127.0.0.1:5196/ ./film/build.sh`. Potrzebne są Chrome, Node, FFmpeg i uv. Skrypt korzysta z zablokowanych zależności i ładuje Pillow dla montażu ujęć.
-3. Teksty narracji, czas oraz tytuły znajdują się w [scenariuszu](../film/scenes.json). Po zmianie tekstów można odtworzyć ścieżkę na macOS z polskim głosem Zosia przez `python3 film/voice.py`. W repozytorium jest gotowa ścieżka AAC.
+2. Z katalogu głównego repozytorium uruchom `AED_DEMO_URL=http://127.0.0.1:5196/ ./film/build.sh`. Potrzebne są Chrome, Node, FFmpeg, Python 3 i zależności frontendu. Skrypt pakuje nagrania jako media dla sceny Canvas, następnie renderuje klatki w Chromium.
+3. Teksty narracji, czas oraz tytuły znajdują się w [scenariuszu](../film/scenes.json). Po zmianie tekstów można odtworzyć ścieżkę na macOS z polskim głosem Zosia przez `python3 film/voice.py`. W repozytorium jest gotowa ścieżka AAC, osobna próbka komendy „dalej” oraz znaczniki czasu podpisów. W scenie instrukcji słychać fragment nagrania tego samego lektora, którego uruchamia aplikacja.
 4. Prezentację można edytować w PowerPoint lub otworzyć jej JSON w Presentation Studio. Źródła merytoryczne zapisano również w notatkach do slajdów.
 
 ## Pochodzenie materiałów

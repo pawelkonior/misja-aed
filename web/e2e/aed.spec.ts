@@ -11,7 +11,12 @@ test('offers the AED service and emergency number without contacting the templat
     await route.abort();
   });
   await page.goto('./');
-  await expect(page.getByRole('heading', { level: 1, name: 'Pulpit' })).toBeVisible();
+  const dashboardTitle = (await page
+    .getByRole('navigation', { name: 'Nawigacja mobilna' })
+    .isVisible())
+    ? 'Dokumenty'
+    : 'Pulpit';
+  await expect(page.getByRole('heading', { level: 1, name: dashboardTitle })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Otwórz mapę AED' })).toBeVisible();
   await expect(page.getByRole('link', { name: /112/ })).toHaveAttribute('href', 'tel:112');
   const size = await page.evaluate(() => ({
@@ -87,4 +92,33 @@ test('serves the downloadable national dataset described by the catalogue', asyn
       expect(text.split('\n', 1)[0]).toMatch(/source_url/);
     }
   }
+});
+
+test('uses all four mobile tabs and opens the QR and document dialogs', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./');
+  const nav = page.getByRole('navigation', { name: 'Nawigacja mobilna' });
+  await expect(nav).toBeVisible();
+  for (const label of ['mDowód', 'mPrawo jazdy', 'Moje pojazdy']) {
+    await page.getByRole('button', { name: new RegExp(label) }).click();
+    const dialog = page.getByRole('dialog', { name: label });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Zamknij okno' }).click();
+  }
+  await nav.getByRole('link', { name: 'Usługi' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Usługi' })).toBeVisible();
+  await nav.getByRole('button', { name: 'Kod QR' }).click();
+  const modal = page.getByRole('dialog', { name: 'Otwórz demo na telefonie' });
+  await expect(modal.getByRole('img')).toBeVisible();
+  expect(
+    await modal
+      .getByRole('img')
+      .evaluate((image: HTMLImageElement) => image.decode().then(() => image.naturalWidth)),
+  ).toBeGreaterThan(200);
+  await modal.getByRole('button', { name: 'Zamknij okno' }).click();
+  await nav.getByRole('link', { name: 'Więcej' }).click();
+  await page.getByRole('link', { name: 'Otwórz zbiór danych AED' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Otwarte dane' })).toBeVisible();
+  await nav.getByRole('link', { name: 'Dokumenty' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Dokumenty' })).toBeVisible();
 });

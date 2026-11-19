@@ -65,7 +65,7 @@ export async function openWork(htmlPath, format = '16x9', preload = null) {
 
 // Seek to t and return the canvas as a PNG buffer (native canvas pixels, not a viewport screenshot).
 export async function frameAt(page, t, type = 'image/png', q = 0.95) {
-  const b64 = await page.evaluate((t, type, q) => { __anim.seek(t); return __anim.canvas.toDataURL(type, q).split(',')[1]; }, t, type, q);
+  const b64 = await page.evaluate(async (t, type, q) => { await __anim.seek(t); return __anim.canvas.toDataURL(type, q).split(',')[1]; }, t, type, q);
   return Buffer.from(b64, 'base64');
 }
 

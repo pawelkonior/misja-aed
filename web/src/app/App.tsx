@@ -18,7 +18,13 @@ import {
   ScanQrCode,
   Grip,
 } from 'lucide-react';
-import { AboutView, DataView, FavoriteServices, Home, JourneyAside } from '../features/dashboard/Home';
+import {
+  AboutView,
+  DataView,
+  FavoriteServices,
+  Home,
+  JourneyAside,
+} from '../features/dashboard/Home';
 import { AedInstructions, ArGuide } from '../features/rescue/Rescue';
 import { Modal } from '../shared/ui/Modal';
 import { currentPage, names, paths, type Page } from '../shared/navigation';
@@ -117,19 +123,24 @@ export function App() {
     }
     go(destination);
   }
-  function navLink(key: Page, Icon: typeof Database, shortName?: string) {
+  function navLink(
+    key: Page,
+    Icon: typeof Database,
+    shortName = names[key],
+    active = page === key,
+  ) {
     return (
       <a
         key={key}
         href={'#' + paths[key]}
-        aria-current={page === key ? 'page' : undefined}
+        aria-current={active ? 'page' : undefined}
         onClick={(e) => {
           e.preventDefault();
           navigate(key);
         }}
       >
         <Icon size={20} />
-        <span>{shortName ?? names[key]}</span>
+        <span>{shortName}</span>
       </a>
     );
   }
@@ -185,7 +196,9 @@ export function App() {
                   {date}
                 </div>
               )}
-              <h1 className={page === 'home' ? 'desktop-dashboard-title' : undefined}>{names[page]}</h1>
+              <h1 className={page === 'home' ? 'desktop-dashboard-title' : undefined}>
+                {names[page]}
+              </h1>
               {page === 'home' && <h1 className="mobile-wallet-title">Dokumenty</h1>}
             </div>
             {page === 'home' && (
@@ -195,7 +208,11 @@ export function App() {
             )}
           </div>
           {page === 'home' && <Home go={navigate} documents={setDoc} />}
-          {page === 'services' && <div className="mobile-services"><FavoriteServices go={navigate}/></div>}
+          {page === 'services' && (
+            <div className="mobile-services">
+              <FavoriteServices go={navigate} />
+            </div>
+          )}
           {keepMap && (
             <div className="module-grid">
               <div className="active-module">
@@ -232,8 +249,11 @@ export function App() {
       </div>
       <nav className="bottom-nav" aria-label="Nawigacja mobilna">
         {navLink('home', WalletCards, 'Dokumenty')}
-        {navLink('services', BriefcaseBusiness)}
-        <button type="button" aria-haspopup="dialog" aria-expanded={qr} onClick={()=>setQr(true)}><ScanQrCode size={20}/><span>Kod QR</span></button>
+        {navLink('services', BriefcaseBusiness, 'Usługi', page === 'services' || keepMap)}
+        <button type="button" aria-haspopup="dialog" aria-expanded={qr} onClick={() => setQr(true)}>
+          <ScanQrCode size={20} />
+          <span>Kod QR</span>
+        </button>
         {navLink('about', Grip, 'Więcej')}
       </nav>
       {doc && (
@@ -247,10 +267,20 @@ export function App() {
           </button>
         </Modal>
       )}
-      {qr && <Modal title="Otwórz demo na telefonie" onClose={()=>setQr(false)}>
-        <img className="demo-qr" src={import.meta.env.BASE_URL+'media/demo-qr.png'} width="204" height="204" alt="Kod QR prowadzący do dema Misja AED"/>
-        <a className="project-link" href="https://pawelkonior.github.io/misja-aed/">pawelkonior.github.io/misja-aed</a>
-      </Modal>}
+      {qr && (
+        <Modal title="Otwórz demo na telefonie" onClose={() => setQr(false)}>
+          <img
+            className="demo-qr"
+            src={import.meta.env.BASE_URL + 'media/demo-qr.png'}
+            width="204"
+            height="204"
+            alt="Kod QR prowadzący do dema Misja AED"
+          />
+          <a className="project-link" href="https://pawelkonior.github.io/misja-aed/">
+            pawelkonior.github.io/misja-aed
+          </a>
+        </Modal>
+      )}
       {arrival && page === 'map' && (
         <Modal title="Jesteś w pobliżu AED" onClose={() => setArrival(false)}>
           <p>

@@ -3,7 +3,7 @@ import type { RefObject } from 'react';
 import { bearing, cameraOrientation, distance, tracedPath } from './geometry';
 import type { CompassEvent, Coordinates } from './geometry';
 import { Symbol } from './Symbol';
-import { routePhotos } from '../../../map/index.js';
+import { meters, routePhotos } from '../../../map/core';
 
 type Target = Coordinates & {
   name: string;
@@ -27,11 +27,6 @@ type OrientationConstructor = typeof DeviceOrientationEvent & {
 };
 const base = import.meta.env.BASE_URL;
 const labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-const meters = (n: number) =>
-  n >= 1000
-    ? (n / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + ' km'
-    : Math.round(n) + ' m';
-
 function useArSensors(active: boolean, video: RefObject<HTMLVideoElement | null>) {
   const [fix, setFix] = useState<Fix | null>(null),
     [heading, setHeading] = useState<DeviceHeading | null>(null);
@@ -315,7 +310,7 @@ export function ArGuide({ target, origin, path, demo, onBack, onArrive }: ArProp
         <h2>{target.name}</h2>
         <p className="rescue-ar-hint">
           {near
-            ? 'Sprawdź oznaczenie i odszukaj urządzenie na miejscu. Gdy masz je w ręku, otwórz instrukcję.'
+            ? 'Odszukaj urządzenie i zanieś je do poszkodowanego. Gdy AED jest przy nim, otwórz instrukcję.'
             : hint}
         </p>
         {!demo && active && desired !== null && heading === undefined && (

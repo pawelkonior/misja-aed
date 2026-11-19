@@ -1,8 +1,182 @@
-[
- {"key":"open","start":0,"end":6,"title":["Misja AED"],"label":"HACKNATION 2026  /  AZENO HI","copy":["Otwarta mapa defibrylatorów","w koncepcji usługi mObywatel."],"voice":"Gdzie jest najbliższy defibrylator i jak do niego dotrzeć? To Misja A E D."},
- {"key":"map","start":6,"end":15,"title":["Z pulpitu","na mapę."],"label":"01   /   LOKALIZACJA","copy":["Otwórz mapę z ekranu głównego.","Wybierz urządzenie i sprawdź dostęp."],"voice":"Z pulpitu mObywatela otwieramy mapę. Możemy użyć swojej lokalizacji, wybrać najbliższe urządzenie i sprawdzić zasady dostępu."},
- {"key":"walk","start":15,"end":27,"title":["Zobacz, którego","wejścia szukać."],"label":"02   /   TRASA PIESZA","copy":["Warszawa · Chmielna 21","291 metrów pieszo od punktu startu."],"voice":"W Warszawie ruszamy z ulicy Widok. Piesza trasa ma dwieście dziewięćdziesiąt jeden metrów. Prawdziwe zdjęcia pokazują bramę od Chmielnej, pasaż i miejsce, w którym wisi urządzenie."},
- {"key":"ar","start":27,"end":40,"title":["Spójrz przez","kamerę."],"label":"03   /   NAWIGACJA AR","copy":["GPS i kompas wskazują kierunek.","Na ekranie widzisz symulację marszu."],"voice":"Na telefonie obraz z kamery uzupełniamy kierunkiem z kompasu i pozycją z GPS-u. Tu oglądamy symulację. Gdy jesteśmy blisko celu, aplikacja podpowiada, by poszukać oznaczenia A E D."},
- {"key":"guide","start":40,"end":52,"title":["Masz AED","przy poszkodowanym."],"label":"04   /   INSTRUKCJA","copy":["Zobacz animację. Włącz lektora.","Kolejny krok wywołasz słowem „dalej”."],"voice":"Przy poszkodowanym można otworzyć animowaną instrukcję, włączyć lektora i powiedzieć: dalej. W pierwszej kolejności słuchamy dyspozytora i komunikatów samego defibrylatora."},
- {"key":"data","start":52,"end":60,"title":["18 272","lokalizacje AED."],"label":"OTWARTE DANE  /  POLSKA","copy":["Dwa źródła · GeoJSON i CSV","Zbiór przygotowany dla dane.gov.pl."],"voice":"Po połączeniu dwóch źródeł udostępniamy ponad osiemnaście tysięcy lokalizacji. Otwarty zbiór przygotował zespół Azeno Hi."}
-]
+{
+  "shots": [
+    [
+      "open",
+      0,
+      3.7
+    ],
+    [
+      "home",
+      3.7,
+      8.9
+    ],
+    [
+      "map",
+      8.9,
+      13.5
+    ],
+    [
+      "detail",
+      13.5,
+      17.6
+    ],
+    [
+      "photos",
+      17.6,
+      23.2
+    ],
+    [
+      "route",
+      23.2,
+      28.8
+    ],
+    [
+      "turn",
+      28.8,
+      30.6
+    ],
+    [
+      "ar",
+      30.6,
+      37.1
+    ],
+    [
+      "arrival",
+      37.1,
+      42.6
+    ],
+    [
+      "voice",
+      42.6,
+      51.8
+    ],
+    [
+      "data",
+      51.8,
+      56.2
+    ],
+    [
+      "close",
+      56.2,
+      60
+    ]
+  ],
+  "cues": [
+    {
+      "a": 0,
+      "b": 3.7,
+      "line": "Widzisz punkt na mapie. Którędy wejść po AED?"
+    },
+    {
+      "a": 3.7,
+      "b": 5.8,
+      "line": "Jedna osoba prowadzi RKO."
+    },
+    {
+      "a": 5.8,
+      "b": 8.9,
+      "line": "Druga otwiera mapę AED w mObywatelu."
+    },
+    {
+      "a": 8.9,
+      "b": 13.5,
+      "line": "W Warszawie wybiera urządzenie przy Chmielnej."
+    },
+    {
+      "a": 13.5,
+      "b": 17.6,
+      "line": "W opisie czyta: w tunelu, obok tablic."
+    },
+    {
+      "a": 17.6,
+      "b": 20.4,
+      "line": "Porównaj wejście ze zdjęciem."
+    },
+    {
+      "a": 20.4,
+      "b": 23.2,
+      "line": "W galerii znajdziesz też szafkę."
+    },
+    {
+      "a": 23.2,
+      "b": 28.8,
+      "line": "Od ulicy Widok trasa piesza ma 291 metrów."
+    },
+    {
+      "a": 28.8,
+      "b": 30.6,
+      "line": "Gdzie teraz skręcić?"
+    },
+    {
+      "a": 30.6,
+      "b": 33.5,
+      "line": "Obracamy telefon, żeby znaleźć kierunek."
+    },
+    {
+      "a": 33.5,
+      "b": 37.1,
+      "line": "Znacznik prowadzi do kolejnego zakrętu."
+    },
+    {
+      "a": 37.1,
+      "b": 39.8,
+      "line": "Przy celu szukamy znaku AED."
+    },
+    {
+      "a": 39.8,
+      "b": 42.6,
+      "line": "Zabieramy urządzenie do poszkodowanego."
+    },
+    {
+      "a": 42.6,
+      "b": 45.05,
+      "line": "Animacja pokazuje kolejny krok."
+    },
+    {
+      "a": 45.05,
+      "b": 46.59,
+      "line": "Naklej elektrody.",
+      "audio": "krok-3",
+      "trim": 1.49,
+      "cutIn": 0.2,
+      "specific": [
+        0.05,
+        0.51
+      ]
+    },
+    {
+      "a": 46.59,
+      "b": 49.05,
+      "line": "Włączamy mikrofon i mówimy…"
+    },
+    {
+      "a": 49.05,
+      "b": 49.83,
+      "line": "Dalej.",
+      "mic": true
+    },
+    {
+      "a": 49.83,
+      "b": 51.8,
+      "line": "Otwiera się krok czwarty."
+    },
+    {
+      "a": 51.8,
+      "b": 56.2,
+      "line": "Ten sam zbiór można pobrać dla całej Polski."
+    },
+    {
+      "a": 56.2,
+      "b": 60,
+      "line": "18 272 lokalizacje do publikacji na dane.gov.pl.",
+      "words": [
+        "18 272",
+        "lokalizacje",
+        "do",
+        "publikacji",
+        "na",
+        "dane.gov.pl."
+      ]
+    }
+  ]
+}

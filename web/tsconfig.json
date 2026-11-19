@@ -18,5 +18,5 @@
     "verbatimModuleSyntax": true,
     "types": ["vite/client", "node", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", "map", "*.config.ts", "e2e"]
+  "include": ["src", "map", "speech", "*.config.ts", "e2e"]
 }

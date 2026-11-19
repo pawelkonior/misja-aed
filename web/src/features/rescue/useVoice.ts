@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { localSpeech } from '../../../speech/local';
 import { steps } from './steps';
 import { playNarration } from './narration';
 
@@ -39,6 +40,17 @@ export function useVoice(step: number, next: () => void) {
   const [read, setRead] = useState(false),
     [mic, setMic] = useState(false),
     [message, setMessage] = useState('');
+  const [local, setLocal] = useState(() => {
+    try {
+      return sessionStorage.getItem('aed-local-speech') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const supportsLocal =
+    typeof navigator.mediaDevices?.getUserMedia === 'function' &&
+    typeof AudioContext === 'function' &&
+    typeof AudioWorkletNode === 'function';
   const reading = useRef(false),
     active = useRef<Recognition | null>(null),
     latestNext = useRef(next);
@@ -49,6 +61,25 @@ export function useVoice(step: number, next: () => void) {
   }, [next]);
   useEffect((): undefined | (() => void) => {
     if (!listening) return undefined;
+    const onCommand = (words: string) => {
+      if (reading.current || !/^(dalej|następny|następny krok|przejdź dalej)$/.test(words))
+        return false;
+      latestNext.current();
+      return true;
+    };
+    if (local && supportsLocal) {
+      return localSpeech({
+        reading: () => reading.current,
+        ready: () => setMessage('Mikrofon gotowy. Powiedz „dalej”.'),
+        command: (words) => {
+          if (onCommand(words)) setMessage('Rozpoznano „' + words + '”.');
+        },
+        error: () => {
+          setMessage('Lokalne rozpoznawanie mowy jest niedostępne. Możesz użyć przycisku Dalej.');
+          setMic(false);
+        },
+      });
+    }
     const RecognitionClass = recognizer();
     if (!RecognitionClass) return undefined;
     const instance = new RecognitionClass();
@@ -79,8 +110,7 @@ export function useVoice(step: number, next: () => void) {
         ?.toLocaleLowerCase('pl-PL')
         .replace(/[.,!?]/g, '')
         .trim();
-      if (!reading.current && words && /^(dalej|następny|następny krok|przejdź dalej)$/.test(words))
-        latestNext.current();
+      if (words) onCommand(words);
     };
     const onError = (event: { error: string }) => {
       if (disposed || event.error === 'aborted' || event.error === 'no-speech') return;
@@ -110,7 +140,7 @@ export function useVoice(step: number, next: () => void) {
       instance.removeEventListener('error', onError);
       instance.abort();
     };
-  }, [listening]);
+  }, [listening, local, supportsLocal]);
   useEffect((): undefined | (() => void) => {
     if (!read) return undefined;
     reading.current = true;
@@ -136,14 +166,26 @@ export function useVoice(step: number, next: () => void) {
     read,
     mic: listening,
     message,
-    canListen: Boolean(recognizer()),
+    canListen: Boolean(recognizer()) || (local && supportsLocal),
+    local,
+    supportsLocal,
+    setLocal: (value: boolean) => {
+      setMic(false);
+      setMessage('');
+      setLocal(value);
+      try {
+        sessionStorage.setItem('aed-local-speech', value ? '1' : '0');
+      } catch {
+        /* The current choice still applies. */
+      }
+    },
     toggleRead: useCallback(() => {
       setMessage('');
       setRead((v) => !v);
     }, []),
     toggleMic: useCallback(() => {
-      setMessage('');
+      setMessage(!mic && local ? 'Przygotowywanie polskiego modelu mowy…' : '');
       setMic((v) => !v);
-    }, []),
+    }, [mic, local]),
   };
 }

@@ -19,7 +19,7 @@ export const names: Record<Page, string> = {
   data: 'Otwarte dane',
   about: 'O projekcie',
 };
-const pages: readonly Page[] = ['home', 'map', 'ar', 'guide', 'data', 'about'];
+const pages: readonly Page[] = ['home', 'services', 'map', 'ar', 'guide', 'data', 'about'];
 export function currentPage(): Page {
   return pages.find((p) => '#' + paths[p] === window.location.hash) ?? 'home';
 }

@@ -1,115 +1,117 @@
-<!doctype html><html lang="pl"><meta charset="utf-8"><title>Misja AED · film</title>
-<style>*{margin:0}body{background:#102e26}canvas{display:block;width:100vw}</style>
+<!doctype html><html lang="pl"><meta charset="utf-8"><title>Misja AED · pokaz prototypu</title>
+<style>*{margin:0}body{background:#f5f6fa}canvas{display:block;width:100vw}</style>
 <canvas width="1920" height="1080" id="canvas"></canvas>
 <script>
-const scenes=@@SCENES@@, assets=@@ASSETS@@;
-const canvas=document.querySelector('canvas'), c=canvas.getContext('2d',{alpha:false});
-const imgs={}, W=1920,H=1080;
-const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v));
-const ease=v=>1-(1-clamp(v))**3;
-function box(x,y,w,h,r,color) {c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
-function txt(value,x,y,size,color,weight=500){c.fillStyle=color;c.font=weight+' '+size+'px system-ui, Arial, sans-serif';c.textBaseline='alphabetic';c.textAlign='left';c.fillText(value,x,y);}
-function lines(words,x,y,size,color,lh,weight=600){words.forEach((line,i)=>txt(line,x,y+i*lh,size,color,weight));}
-function cropped(img,x,y,w,h,zoom=1,ax=.5,ay=.5) {
- const factor=Math.max(w/img.width,h/img.height)*zoom;
- const sw=w/factor, sh=h/factor;
- c.drawImage(img,(img.width-sw)*ax,(img.height-sh)*ay,sw,sh,x,y,w,h);
+const shots=@@SHOTS@@, cues=@@WORDS@@, mic=@@MIC@@, sources=@@CLIPS@@, art=@@IMAGES@@, route=@@ROUTE@@;
+const canvas=document.querySelector('canvas'), ctx=canvas.getContext('2d',{alpha:false});
+const v={}, im={}, W=1920,H=1080,C={bg:'#f5f6fa',ink:'#142238',sub:'#506170',red:'#d62a46',blue:'#135a9e',line:'#cbd3da'};
+const clamp=(n,a=0,b=1)=>Math.min(b,Math.max(a,n));
+const smooth=n=>{const k=clamp(n);return k*k*(3-2*k)};
+const lerp=(a,b,n)=>a+(b-a)*clamp(n);
+function rect(x,y,w,h,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
+function text(s,x,y,size,color=C.ink,weight=600,align='left'){
+ ctx.fillStyle=color;ctx.font=weight+' '+size+'px -apple-system, Arial, sans-serif';
+ ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillText(s,x,y);
 }
-function art(img,x,y,w,h,r,zoom,ax,ay){
- c.save();c.beginPath();c.roundRect(x,y,w,h,r);c.clip();cropped(img,x,y,w,h,zoom,ax,ay);c.restore();
+function line(x,y,X,Y,width,color){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(X,Y);ctx.stroke();}
+function dot(x,y,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+function ring(x,y,r,width,c){ctx.strokeStyle=c;ctx.lineWidth=width;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();}
+function wordCaption(t,center=false){
+ const cue=cues.find(e=>t>=e.a&&t<e.b);if(!cue)return;
+ const hot=cue.words.findLastIndex(o=>o.t<=t);
+ let size=center?98:48, gap=center?25:14;
+ ctx.font='700 '+size+'px Arial,sans-serif';
+ let widths=cue.words.map(o=>ctx.measureText(o.w).width), total=widths.reduce((a,b)=>a+b,0)+(widths.length-1)*gap;
+ if(total>1770){const f=1770/total;size*=f;gap*=f;widths=widths.map(i=>i*f);total=1770;}
+ let x=(W-total)/2, y=center?520:1008;
+ cue.words.forEach((o,i)=>{
+   if(i===hot){rect(x-6,y-size*.59,widths[i]+12,size*1.20,5,C.red);}
+   ctx.font='700 '+size+'px Arial,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle=i===hot?'white':C.ink;ctx.fillText(o.w,x,y+1);
+   x+=widths[i]+gap;
+ });
 }
-function heart(x,y,scale,bg,ink){
- c.save();c.translate(x,y);c.scale(scale,scale);
- box(0,0,64,64,18,bg);c.fillStyle=ink;c.fill(new Path2D('M32 51 C25 46 10 37 10 25 C10 11 26 10 32 20 C38 10 54 12 54 25 C54 36 40 46 32 51Z'));
- c.fillStyle=bg;c.fill(new Path2D('M35 18L24 34H32L28 43L42 26H33Z'));c.restore();
+const merc=n=>Math.asinh(Math.tan(n*Math.PI/180))*180/Math.PI;
+const mapScale=1900/.0165, p=([lon,lat])=>[(lon-21.0055)*mapScale,(merc(52.236)-merc(lat))*mapScale];
+const raw=route.map(p), X0=Math.min(...raw.map(v=>v[0]))-19, Y0=Math.min(...raw.map(v=>v[1]))-21;
+const norm = raw.map(v=>[(v[0]-X0)*2.04+160,(v[1]-Y0)*2.04+139]);
+function trace(points,f,col,width){
+ const lens=points.slice(1).map((pt,i)=>Math.hypot(pt[0]-points[i][0],pt[1]-points[i][1]));
+ let distance=f*lens.reduce((a,b)=>a+b,0);ctx.beginPath();ctx.moveTo(...points[0]);ctx.lineJoin='round';ctx.lineCap='round';
+ for(let i=0;i<lens.length;i++){const v=points[i+1],u=points[i],k=clamp(distance/(lens[i]||1));ctx.lineTo(lerp(u[0],v[0],k),lerp(u[1],v[1],k));distance-=lens[i];if(distance<=0)break;}
+ ctx.strokeStyle=col;ctx.lineWidth=width;ctx.stroke();
 }
-function progress(t,dark){
- for(let i=0;i<scenes.length;i++){
-   const s=scenes[i], x=110+(s.start/60)*1700, w=((s.end-s.start)/60)*1700-8;
-   box(x,991,w,4,2,dark?'#47685a':'#d6e2db');
-   const f=clamp((t-s.start)/(s.end-s.start));
-   if(f>0)box(x,991,Math.max(4,f*w),4,2,dark?'#a5efd0':'#09724e');
+function opener(t){
+ const bx=84,by=85,bw=1040,bh=743;
+ ctx.save();ctx.beginPath();ctx.roundRect(bx,by,bw,bh,12);ctx.clip();
+ // The projection, roads and polyline use the same OSM geometry as the actual demo.
+ const ox=160-X0*2.04, oy=139-Y0*2.04;
+ ctx.drawImage(im.map,ox,oy,1900*2.04,1598.1*2.04);
+ ctx.fillStyle='#ffffff70';ctx.fillRect(bx,by,bw,bh);
+ const origin=norm[0],end=norm.at(-1);ctx.setLineDash([11,13]);trace([origin,end],smooth(t/.75),'#7f8d9c',5);ctx.setLineDash([]);
+ trace(norm,smooth((t-.95)/1.65),'white',19);trace(norm,smooth((t-.95)/1.65),C.blue,10);
+ dot(...origin,21,'white');dot(...origin,15,C.blue);
+ const pulse=(t%1.25)/1.25;ctx.save();ctx.globalAlpha=(1-pulse)*.64;ring(...end,20+27*pulse,4,C.red);ctx.restore();dot(...end,21,'white');dot(...end,14,C.red);
+ rect(origin[0]-100,origin[1]+29,198,49,4,'#fff');text('ul. Widok',origin[0],origin[1]+54,28,C.ink,660,'center');
+ rect(end[0]-94,end[1]-62,188,45,4,'white');text('AED',end[0],end[1]-39,30,C.red,720,'center');ctx.restore();
+ text('WARSZAWA  /  CHMIELNA 21',1190,165,25,C.sub,650);
+ text('111 m',1180,287,110,C.ink,710);text('w linii prostej',1190,374,40,C.sub,490);
+ line(1190,452,1730,452,2,C.line);ctx.save();ctx.globalAlpha=smooth((t-.78)/.5);
+ text('291 m',1180,564,110,C.red,710);text('drogą pieszą',1190,653,40,C.sub,490);ctx.restore();
+ text('© OpenStreetMap  /  trasa piesza FOSSGIS',93,865,21,C.sub,450);
+ wordCaption(t);
+}
+function close(t){
+ const phase=smooth((t-56.2)/1.1);
+ const total=Math.round(lerp(18265,18272,phase));
+ text('MISJA AED',138,179,35,C.red,720);
+ text(total.toLocaleString('pl-PL'),123,420,178,C.ink,720);
+ text('lokalizacje defibrylatorów',140,562,66,C.ink,600);
+ rect(139,657,Math.max(2,410*phase),6,1,C.red);
+ text('Azeno Hi   /   HackNation 2026',140,779,34,C.sub,550);
+ ctx.drawImage(im.qr,1300,183,365,365);text('Otwórz działające demo',1484,606,34,C.ink,650,'center');
+ text('pawelkonior.github.io/misja-aed',1484,664,28,C.sub,500,'center');
+ wordCaption(t);
+}
+function setTime(video,t){
+ const wanted=clamp(t,0,video.duration-.035);
+ if(Math.abs(video.currentTime-wanted)<.001&&video.readyState>=2)return Promise.resolve();
+ return new Promise((resolve,reject)=>{
+  const finish=()=>{video.removeEventListener('error',fail);resolve()};
+  const fail=()=>{video.removeEventListener('seeked',finish);reject(Error('Video decoding failed'))};
+  video.addEventListener('seeked',finish,{once:true});video.addEventListener('error',fail,{once:true});video.currentTime=wanted;
+ });
+}
+async function seek(time){
+ const t=clamp(time,0,59.999);const [key,a,b]=shots.find(s=>t>=s[1]&&t<s[2]);
+ ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
+ if(key==='open'){opener(t);return}
+ if(key==='close'){close(t);return}
+ if(key==='turn'){
+   const split=smooth((t-a)/.22);
+   line(960-85*split,392,960+85*split,392,5,C.red);
+   wordCaption(t,true);return;
  }
-}
-function screen(key,local,x,y,w,h){
- const n=Math.floor(local*6), name=key+Math.floor(n/12), img=imgs[name];
- if(!img)return;
- const pos=n%12;
- c.save();c.shadowColor='#12382b40';c.shadowBlur=35;c.shadowOffsetY=18;
- box(x-10,y-10,w+20,h+20,40,'#18342b');c.restore();
- c.save();c.beginPath();c.roundRect(x,y,w,h,31);c.clip();
- c.drawImage(img,(pos%4)*420,Math.floor(pos/4)*820,420,820,x,y,w,h);c.restore();
-}
-function chapter(s,t){
- const u=t-s.start, enter=ease(u/.55), key=s.key, dark=key==='ar';
- c.fillStyle=dark?'#103a32':'#f6f8f4';c.fillRect(0,0,W,H);
- const ink=dark?'#f3fff8':'#102d23', secondary=dark?'#c5e1d4':'#475e51';
- const slide=(1-enter)*22;
- c.save();c.translate(slide,0);
- heart(108,86,.73,dark?'#b9efd5':'#d3f2e0',dark?'#124b36':'#0a7153');
- txt('Misja AED',171,119,31,ink,650);
- txt(s.label,108,288,24,dark?'#a3e8c6':'#0c7453',650);
- const fs=key==='guide'?72:key==='walk'?79:94;
- lines(s.title,103,411,fs,ink,fs*1.07,670);
- lines(s.copy,110,614,31,secondary,44,450);
- if(key==='walk'){
-   art(imgs.entrance,109,706,350,178,16,1.03+u*.004,.56,.36);
-   txt('Wejście od ul. Chmielnej',486,773,24,ink,620);
-   txt('Zdjęcia dojścia: Cybularny,',486,817,21,secondary);
-   txt('CC0 / CC BY 4.0',486,846,21,secondary);
- }else if(key==='ar'){
-   box(109,731,315,57,29,'#28564b');txt('Symulacja trasy',141,768,24,'#ddf8e8',600);
- }else if(key==='guide'){
-   box(109,735,357,59,30,'#dfefe4');txt('Polecenie głosowe',135,774,24,'#124b35',600);
-   for(let i=0;i<13;i++){const v=13+18*Math.abs(Math.sin(u*3+i*.75));box(490+i*10,764-v/2,6,v,3,'#278863');}
- }else{
-   box(109,735,425,59,30,'#e2efe5');txt('Warszawa  ·  scenariusz demo',135,774,23,'#194c37',590);
+ const vid=v[key];
+ let sourceTime=(t-a)/(b-a)*vid.duration;
+ if(key==='voice'){
+   const guide=[[42.6,0],[45.05,mic.clickRead],[46.59,mic.clickMute],[47.15,mic.clickMic],[49.05,mic.speechOnset],[49.83,mic.stepFour],[51.8,vid.duration]];
+   const slot=guide.findIndex((p,i)=>i>0&&t<=p[0]);
+   const lo=guide[slot-1],hi=guide[slot];
+   sourceTime=lerp(lo[1],hi[1],(t-lo[0])/(hi[0]-lo[0]));
  }
- c.restore();
- const panelX=1083;
- box(panelX,48,723,894,48,dark?'#26594d':'#e0efe5');
- c.save();c.beginPath();c.roundRect(panelX,48,723,894,48);c.clip();
- c.strokeStyle=dark?'#477769':'#c2dccb';c.lineWidth=2;
- for(let i=0;i<9;i++){c.beginPath();c.arc(panelX+570,650,165+i*52+6*Math.sin(t/7),0,Math.PI*2);c.stroke();}
- c.restore();
- screen(key,u,1231,84,419,818);
- progress(t,dark);
+ await setTime(vid,sourceTime);
+ const x=126,y=16,w=1668,h=w*9/16;
+ ctx.save();ctx.shadowBlur=14;ctx.shadowColor='#1e314c25';ctx.shadowOffsetY=3;rect(x,y,w,h,8,'#fff');ctx.restore();
+ ctx.save();ctx.beginPath();ctx.roundRect(x,y,w,h,8);ctx.clip();ctx.drawImage(vid,x,y,w,h);ctx.restore();
+ rect(x+2,y,w-4,5,2,C.red);
+ if(key==='ar'||key==='arrival'){
+   // This mark is retained even when the recording zooms beyond the in-app mode label.
+   rect(x+w-303,y+13,285,41,4,'#132c2af2');text('SYMULACJA MARSZU',x+w-159,y+34,21,'#fff',700,'center');
+ }
+ wordCaption(t);
 }
-function endCard(s,t){
- const u=t-s.start;
- c.fillStyle='#103c30';c.fillRect(0,0,W,H);
- c.save();c.strokeStyle='#215340';c.lineWidth=2;
- for(let i=0;i<15;i++){c.beginPath();c.arc(1700,470,150+i*51+6*Math.sin(u/3),0,Math.PI*2);c.stroke();}c.restore();
- heart(110,93,.87,'#b5efd0','#0b5c43');txt('Misja AED',185,137,36,'#fff',620);
- txt(s.label,112,294,27,'#a4e0c3',600);
- txt('18 272',99,497,177,'#f5fff9',680);
- txt('lokalizacje AED',109,606,85,'#eefaf1',600);
- lines(s.copy,112,716,35,'#c5e2ce',51,430);
- box(1152,337,555,297,30,'#1b503d');
- txt('Źródła danych',1194,404,32,'#d9f5e4',650);
- txt('OpenStreetMap',1194,466,28,'#fff',520);txt('18 265',1548,466,25,'#d5ecd9',600);
- txt('Miasto Przemyśl',1194,520,28,'#fff',520);txt('21',1548,520,25,'#d5ecd9',600);
- txt('Scalone pary',1194,574,28,'#fff',520);txt('14',1548,574,25,'#d5ecd9',600);
- txt('Azeno Hi    /    HackNation 2026',110,910,26,'#e5f9eb',600);
- txt('pawelkonior.github.io/misja-aed',1150,909,31,'#e5f9eb',540);progress(t,true);
-}
-function openCard(s,t){
- c.fillStyle='#edfaf2';c.fillRect(0,0,W,H);
- c.save();c.beginPath();c.roundRect(1035,65,775,868,44);c.clip();cropped(imgs.hero,1035,65,775,868,1+t*.009,.91,.48);c.restore();
- heart(110,100,.86,'#126749','#fff');
- txt('Azeno Hi',182,141,34,'#155d45',620);
- txt(s.label,111,318,26,'#177747',650);
- txt('Misja',99,486,151,'#103c2c',680);txt('AED',99,639,176,'#0e704d',680);
- lines(s.copy,112,745,40,'#355848',56,450);
- progress(t,false);
-}
-function seek(t){
- t=clamp(t,0,59.999);const scene=scenes.find(p=>p.start<=t&&t<p.end);
- if(scene.key==='open')openCard(scene,t);else if(scene.key==='data')endCard(scene,t);else chapter(scene,t);
- const dt=t-scene.start;
- if(dt<.22 && t>.01){c.fillStyle='rgba(237,247,239,'+(.72*(1-dt/.22))+')';c.fillRect(0,0,W,H);}
-}
-Promise.all(Object.entries(assets).map(([k,src])=>new Promise((resolve,reject)=>{
- const img=new Image();img.onload=()=>{imgs[k]=img;resolve()};img.onerror=reject;img.src=src;
-}))).then(()=>{window.__anim={duration:60,width:W,height:H,canvas,seek,ready:true};seek(0);});
+Promise.all([
+ ...Object.entries(art).map(([k,src])=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{im[k]=i;res()};i.onerror=rej;i.src=src})),
+ ...Object.entries(sources).map(([k,src])=>new Promise((res,rej)=>{const e=document.createElement('video');e.muted=true;e.playsInline=true;e.preload='auto';e.onloadeddata=()=>{v[k]=e;res()};e.onerror=rej;e.src=src;e.load()}))
+]).then(async()=>{await seek(0);window.__anim={duration:60,width:W,height:H,canvas,seek,ready:true,shots};});
 </script></html>

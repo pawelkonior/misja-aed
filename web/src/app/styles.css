@@ -743,6 +743,9 @@ svg {
   background: #edf2ee;
   font-size: 24px;
 }
+.mobile-wallet-title,
+.wallet-licence,
+.wallet-vehicles,
 .mobile-brand,
 .bottom-nav {
   display: none;
@@ -1022,7 +1025,8 @@ svg {
     padding: 7px 6px max(7px, env(safe-area-inset-bottom));
     justify-content: space-around;
   }
-  .bottom-nav a {
+  .bottom-nav a,
+  .bottom-nav button {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1030,8 +1034,11 @@ svg {
     text-decoration: none;
     color: #627168;
     font-size: 10px;
-    min-width: 54px;
-    padding: 2px;
+    min-width: 56px;
+    min-height: 44px;
+    padding: 3px;
+    justify-content: center;
+    background: transparent;
   }
   .bottom-nav a[aria-current] {
     color: var(--green);
@@ -1111,5 +1118,188 @@ svg {
   }
   .aed-hero {
     min-height: 239px;
+  }
+}
+
+.demo-qr {
+  display: block;
+  margin: 12px auto;
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+.data-project-link {
+  margin-bottom: 12px;
+}
+.mobile-services {
+  max-width: 710px;
+}
+
+@media (max-width: 760px) {
+  .portal {
+    background: #f5f6fb;
+  }
+  .topbar {
+    border-bottom-color: transparent;
+    background: #f5f6fb;
+  }
+  .footline,
+  .footline a {
+    color: #4e5d58;
+  }
+  .view-home {
+    padding-top: 5px;
+  }
+  .view-home .page-heading {
+    margin-bottom: 16px;
+  }
+  .view-home .desktop-dashboard-title,
+  .view-home .date-line,
+  .view-home .city-chip,
+  .view-home .documents > h2 {
+    display: none;
+  }
+  .mobile-wallet-title {
+    display: block;
+  }
+  .view-home .mobile-wallet-title {
+    font-size: 32px;
+    color: #131820;
+    letter-spacing: -1.45px;
+    font-weight: 700;
+  }
+  .home-grid {
+    row-gap: 12px;
+  }
+  .home-grid .documents {
+    grid-row: 1;
+  }
+  .doc-stack {
+    isolation: isolate;
+    padding-bottom: 2px;
+  }
+  .doc-stack .doc-card {
+    width: 100%;
+    height: 112px;
+    min-height: 0;
+    padding: 13px 16px;
+    border-radius: 14px;
+    display: block;
+    box-shadow: 0 2px 5px #1b21301f;
+    background: linear-gradient(110deg, #0052aa 0%, #0673c7 55%, #258ac5 100%);
+  }
+  .doc-stack .doc-card:not(:last-child) {
+    height: 63px;
+  }
+  .doc-stack .doc-card + .doc-card {
+    margin-top: -14px;
+  }
+  .doc-stack .wallet-licence {
+    background: linear-gradient(112deg, #4e2265 0%, #783b7e 68%, #984f82 100%);
+  }
+  .doc-stack .wallet-vehicles {
+    background: linear-gradient(113deg, #864116 0%, #c1712d 53%, #edb16c 100%);
+  }
+  .doc-stack .doc-top,
+  .doc-stack .doc-bottom {
+    position: absolute;
+    top: 12px;
+  }
+  .doc-stack .doc-top {
+    right: 15px;
+    flex-direction: row-reverse;
+    gap: 9px;
+    justify-content: end;
+  }
+  .doc-stack .doc-top > svg {
+    width: 23px;
+    height: 23px;
+    color: white;
+  }
+  .doc-stack .doc-top > span {
+    border: 0;
+    padding: 2px 6px;
+    color: white;
+    background: #23223480;
+    font-size: 9px;
+  }
+  .doc-stack .doc-bottom {
+    left: 15px;
+    height: 24px;
+  }
+  .doc-stack .doc-bottom strong {
+    font-size: 15px;
+    letter-spacing: -0.35px;
+  }
+  .doc-stack .doc-bottom svg {
+    display: none;
+  }
+  .doc-stack .doc-grooves {
+    opacity: 0.23;
+    inset: 25% -30% -260% 42%;
+    transform: rotate(-15deg);
+  }
+  .home-grid .shortcuts {
+    display: contents;
+  }
+  .home-grid .shortcuts > h2 {
+    grid-row: 2;
+    margin: 8px 0 -2px;
+    font-size: 21px;
+  }
+  .home-grid .aed-hero {
+    grid-row: 3;
+    min-height: 148px;
+    border-radius: 15px;
+  }
+  .home-grid .aed-hero .hero-copy {
+    padding: 13px 15px;
+  }
+  .home-grid .aed-hero h2 {
+    margin: 7px 0 9px;
+    font-size: 24px;
+    letter-spacing: -1.1px;
+  }
+  .home-grid .aed-hero p {
+    display: none;
+  }
+  .home-grid .aed-hero .service-tag {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    letter-spacing: 0.7px;
+    font-size: 9px;
+  }
+  .home-grid .aed-hero .primary-cta {
+    padding: 8px 11px;
+    min-height: 36px;
+  }
+  .home-grid .hero-visual {
+    inset: 0 0 0 45%;
+    background-size: auto 94%;
+    background-position: center right;
+  }
+  .home-grid .tiles {
+    grid-row: 4;
+  }
+  .home-grid .near-card {
+    grid-row: 5;
+  }
+  .home-grid .open-strip {
+    grid-row: 6;
+  }
+  .bottom-nav {
+    padding-top: 5px;
+  }
+  .bottom-nav a,
+  .bottom-nav button {
+    color: #434954;
+  }
+  .bottom-nav a[aria-current],
+  .bottom-nav button[aria-expanded='true'] {
+    color: #1254af;
+  }
+  .bottom-nav a[aria-current] > svg {
+    background: transparent;
   }
 }

@@ -175,3 +175,31 @@ it('requires a person to confirm possession of the AED before opening instructio
   expect(await heading('Instrukcja AED')).toBeVisible();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
+
+it('opens mobile wallet cards, services, QR sharing and the dataset under More', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: /mPrawo jazdy/ }));
+  expect(screen.getByRole('dialog', { name: 'mPrawo jazdy' })).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Zamknij okno' }));
+  const mobileNav = within(screen.getByRole('navigation', { name: 'Nawigacja mobilna' }));
+  await user.click(mobileNav.getByRole('link', { name: 'Usługi' }));
+  expect(await heading('Usługi')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: /^Mapa AED/ }));
+  expect(await heading('Mapa AED')).toBeVisible();
+  expect(mobileNav.getByRole('link', { name: 'Usługi' })).toHaveAttribute('aria-current', 'page');
+  await user.click(mobileNav.getByRole('button', { name: 'Kod QR' }));
+  const qr = within(screen.getByRole('dialog', { name: 'Otwórz demo na telefonie' }));
+  expect(qr.getByRole('img')).toHaveAttribute(
+    'src',
+    import.meta.env.BASE_URL + 'media/demo-qr.png',
+  );
+  expect(qr.getByRole('link')).toHaveAttribute('href', 'https://pawelkonior.github.io/misja-aed/');
+  await user.click(qr.getByRole('button', { name: 'Zamknij okno' }));
+  await user.click(mobileNav.getByRole('link', { name: 'Więcej' }));
+  expect(await heading('O projekcie')).toBeVisible();
+  await user.click(screen.getByRole('link', { name: 'Otwórz zbiór danych AED' }));
+  expect(await heading('Otwarte dane')).toBeVisible();
+  await user.click(mobileNav.getByRole('link', { name: 'Dokumenty' }));
+  expect(await heading('Dokumenty')).toBeVisible();
+});

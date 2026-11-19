@@ -1,4 +1,4 @@
-# Wyniki weryfikacji
+# Weryfikacja szablonu Risk Engine
 
 Weryfikacja wykonana 17 listopada 2026 r. na macOS ARM64, Node 26.13.1, npm 12.2.2 i Python 3.14.10. Kontenery zbudowano i uruchomiono przez Docker Compose.
 

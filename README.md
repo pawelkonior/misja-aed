@@ -1,6 +1,6 @@
 # Misja AED — dane na ratunek
 
-**[Uruchom demo na telefonie lub komputerze](https://pawelkonior.github.io/misja-aed/)** · **[Film, 60 s](https://github.com/pawelkonior/misja-aed/releases/download/hacknation-demo/Misja-AED-60s.mp4)** · **[Prezentacja](https://github.com/pawelkonior/misja-aed/releases/download/hacknation-demo/Misja-AED.pptx)**
+**[Uruchom demo na telefonie lub komputerze](https://pawelkonior.github.io/misja-aed/)** · **[Oglądaj film, 60 s](https://pawelkonior.github.io/misja-aed/pokaz/)** · **[Prezentacja](https://github.com/pawelkonior/misja-aed/releases/download/hacknation-demo/Misja-AED.pptx)**
 
 Prototyp usługi mObywatel na [wyzwanie HackNation 2026](https://hacknation.pl/zadania) Departamentu Zarządzania Danymi Ministerstwa Cyfryzacji. Łączy istniejące źródła o AED w otwarty zbiór dla Polski. Na telefonie przeprowadza drugiego świadka zdarzenia od wyszukania urządzenia do instrukcji po przyniesieniu go do poszkodowanego.
 
@@ -9,7 +9,7 @@ Prototyp usługi mObywatel na [wyzwanie HackNation 2026](https://hacknation.pl/z
 1. Z ekranu głównego wybierz **Otwórz mapę AED**. Scenariusz demonstracyjny zaczyna się przy ul. Widok w Warszawie. Na mapie przycisk **Moja lokalizacja** uruchamia rzeczywisty GPS.
 2. Wybierz **Dom towarowy Bracia Jabłkowscy**, obejrzyj zdjęcia wejścia, pasażu i urządzenia, następnie wybierz **Wyznacz trasę pieszą**. Od startu demonstracyjnego to 291 m i około 4 minut.
 3. **Prowadź w AR** pokazuje następny odcinek trasy. W trybie demonstracyjnym **Symuluj dojście** przesuwa pozycję po trasie. W trybie lokalizacji telefonu przycisk **Włącz kamerę i czujniki** uruchamia obraz i kompas.
-4. Po wykryciu bliskości aplikacja prosi o odszukanie urządzenia. Potwierdź jego przejęcie. Instrukcja dla dorosłych zawiera 5 animowanych kroków, polskiego lektora oraz komendę **„dalej”** na zgodnych przeglądarkach.
+4. Po wykryciu bliskości aplikacja prosi o odszukanie urządzenia. Potwierdź jego przejęcie. Instrukcja dla dorosłych zawiera 5 animowanych kroków, polskiego lektora oraz komendę **„dalej”** na zgodnych przeglądarkach. W „O instrukcji i obsłudze głosowej” można wybrać rozpoznawanie w urządzeniu. Pierwsze uruchomienie tego trybu pobiera polski model Vosk (około 50 MB).
 5. W widoku **Otwarte dane** pobierz zbiór i metadane.
 
 W sytuacji zagrożenia życia dzwoń na 112 lub 999 i słuchaj dyspozytora. Pojedynczy świadek powinien pozostać przy poszkodowanym. Dokładność AR zależy od GPS, kompasu i ułożenia telefonu; znacznik oznacza przewidywany kierunek, a fizyczne odnalezienie urządzenia potwierdza użytkownik. [Źródła medyczne i research](docs/research.md)
@@ -49,7 +49,9 @@ VITE_PUBLIC_BASE=/misja-aed/ npm run build
 ## Film i prezentacja
 
 - [Film MP4](deliverables/Misja-AED-60s.mp4), H.264, 1920 × 1080, 30 kl./s, 60 sekund, polski lektor. Rozdziały pokazują interakcje z faktyczną aplikacją oraz oznaczoną symulację dojścia.
-- [Edytowalny PowerPoint](deliverables/Misja-AED.pptx) i [projekt do importu w Presentation Studio](deliverables/Misja-AED.studio.json). Osiem slajdów zawiera źródła w notatkach prelegenta.
+- [Edytowalny PowerPoint](deliverables/Misja-AED.pptx) i [projekt do importu w Presentation Studio](deliverables/Misja-AED.studio.json). Dziesięć slajdów w stylu GovTech korzysta z układów oryginalnej prezentacji Risk Engine. Slajd 6 odtwarza film. Źródła znajdują się w notatkach prelegenta. [PDF wyeksportowany ze Studia](deliverables/Misja-AED.pdf) · [Otwórz projekt w lokalnym Studio](http://127.0.0.1:5174/?deck=misja-aed) · [Instalacja w Presentation Studio](studio/README.md).
 - [Źródła filmu, ilustracje i odtwarzanie renderu](docs/media.md) · [Research usług AED i interfejsu mObywatela](docs/research.md).
+
+[Wyniki sprawdzeń prototypu](docs/demo-verification.md)
 
 **Azeno Hi** — Paweł Konior, Przemysław Stanisz, Andrzej Grzyb, Piotr Lipiński, Rafał Krupa i Tomasz Tracz.

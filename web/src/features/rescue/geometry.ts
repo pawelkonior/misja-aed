@@ -1,30 +1,8 @@
+import { distance } from '../../../map/core';
+export { bearing, distance } from '../../../map/core';
 export type Coordinates = { lat: number; lon: number };
 
-const radius = 6371000;
 const rad = Math.PI / 180;
-
-export function distance(a: Coordinates, b: Coordinates) {
-  const dLat = (b.lat - a.lat) * rad;
-  const dLon = (b.lon - a.lon) * rad;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
-  return 2 * radius * Math.asin(Math.sqrt(Math.min(1, h)));
-}
-
-export function bearing(a: Coordinates, b: Coordinates) {
-  const delta = (b.lon - a.lon) * rad;
-  return (
-    (Math.atan2(
-      Math.sin(delta) * Math.cos(b.lat * rad),
-      Math.cos(a.lat * rad) * Math.sin(b.lat * rad) -
-        Math.sin(a.lat * rad) * Math.cos(b.lat * rad) * Math.cos(delta),
-    ) /
-      rad +
-      360) %
-    360
-  );
-}
 
 function between(a: Coordinates, b: Coordinates, fraction: number): Coordinates {
   return { lat: a.lat + (b.lat - a.lat) * fraction, lon: a.lon + (b.lon - a.lon) * fraction };

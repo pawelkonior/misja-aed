@@ -100,6 +100,16 @@ export function AedInstructions({ onBack }: { onBack: () => void }) {
         )}
         <details className="rescue-source">
           <summary>O instrukcji i obsłudze głosowej</summary>
+          {voice.supportsLocal && (
+            <label className="rescue-local-choice">
+              <input
+                type="checkbox"
+                checked={voice.local}
+                onChange={(e) => voice.setLocal(e.target.checked)}
+              />
+              Rozpoznawaj mowę na urządzeniu (polski model, 50 MB)
+            </label>
+          )}
           <p>
             W pierwszej kolejności słuchaj dyspozytora i swojego AED. Mikrofon służy do przełączania
             kroków po przeczytaniu instrukcji. Dostawca przeglądarki może przetwarzać głos online.

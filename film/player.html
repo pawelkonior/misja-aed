@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#142238" />
+    <title>Misja AED · film demonstracyjny</title>
+    <link rel="icon" href="../favicon.svg" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+        color: #142238;
+        background: #f5f6fa;
+      }
+      main {
+        max-width: 1120px;
+        padding: clamp(20px, 4vw, 50px);
+        margin: auto;
+      }
+      header,
+      footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      small {
+        color: #4b5a6b;
+        font-weight: 600;
+      }
+      h1 {
+        margin: 16px 0;
+        letter-spacing: -0.04em;
+        font-size: clamp(32px, 5vw, 56px);
+        line-height: 1;
+      }
+      video {
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #142238;
+        border-top: 4px solid #d52a47;
+      }
+      a {
+        color: #185993;
+        text-underline-offset: 4px;
+      }
+      footer {
+        margin-top: 15px;
+      }
+      :focus-visible {
+        outline: 3px solid #256fc7;
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header><small>Azeno Hi · HackNation 2026</small><a href="../">Otwórz aplikację</a></header>
+      <h1>Misja AED</h1>
+      <video
+        controls
+        playsinline
+        preload="metadata"
+        poster="../materialy/plakat.jpg"
+        aria-label="Misja AED. Film z polskim lektorem i napisami, 60 sekund"
+      >
+        <source src="../materialy/Misja-AED-60s.mp4" type="video/mp4" />
+        <a href="../materialy/Misja-AED-60s.mp4">Pobierz film MP4</a>
+      </video>
+      <footer>
+        <a href="../materialy/Misja-AED.pdf">Otwórz prezentację Azeno Hi (PDF)</a
+        ><a href="https://github.com/pawelkonior/misja-aed">Kod i dane projektu</a>
+      </footer>
+    </main>
+  </body>
+</html>

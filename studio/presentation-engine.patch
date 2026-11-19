@@ -1,0 +1,112 @@
+--- a/src/main.tsx
++++ b/src/main.tsx
+@@ -5,8 +5,19 @@
+ import "./azeno.css";
+ import "./risk-engine.css";
+ import App from "./App";
+-ReactDOM.createRoot(document.getElementById("root")!).render(
+-  <React.StrictMode>
+-    <App />
+-  </React.StrictMode>,
++import { validateDeck, type Deck } from "./lib/model";
++
++const root = ReactDOM.createRoot(document.getElementById("root")!);
++const render = (seed?: {deck: Deck; revision: string}) => root.render(
++  <React.StrictMode><App installedSeed={seed} /></React.StrictMode>,
+ );
++if (new URLSearchParams(location.search).get("deck") === "misja-aed") {
++  // Vite keeps the self-contained project, including image data, in its own chunk.
++  import("../output/misja-aed/Misja-AED.studio.json?raw").then(async ({default: raw}) => {
++    const value: unknown = JSON.parse(raw);
++    if (!validateDeck(value)) throw new Error("Niepoprawny projekt Misja AED.");
++    const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
++    const revision = Array.from(new Uint8Array(bytes).slice(0,8), b => b.toString(16).padStart(2,"0")).join("");
++    render({deck: value, revision});
++  }).catch(() => root.render(<p role="alert">Nie udało się wczytać projektu Misja AED.</p>));
++} else render();
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -121,6 +121,7 @@
+ const prepareAzenoDeck = (deck: Deck) => withAzenoLiveEvidence(withAzenoPalette(withAzenoBackground(withAzenoConcept(deck, azenoConceptAssets), azenoBackground)), azenoLiveAssets);
+ const deckRoute = new URLSearchParams(window.location.search).get("deck");
+ const isRiskEngineRoute = deckRoute === "risk-engine";
++const isMisjaAedRoute = deckRoute === "misja-aed";
+ const isAzenoRoute = deckRoute === "ai-control-plane";
+ const isHsbcCopyRoute = deckRoute === "mentor-academy-first-5" || deckRoute === "ai-hackathons";
+ let parsedRiskEngineSeed: Deck | undefined;
+@@ -129,7 +130,7 @@
+   const template = readRiskEngineSeed();
+   return withRiskEngineContent(withRiskEngineTeamSlide(deck, template), template);
+ };
+-const defaultDeck = isRiskEngineRoute ? readRiskEngineSeed()
++const defaultDeck = isRiskEngineRoute || isMisjaAedRoute ? readRiskEngineSeed()
+   : isAzenoRoute ? prepareAzenoDeck(createAzenoTemplate(azenoLogo, azenoBackground)) : createWorkshop(
+   originalMarkdown,
+   sourceMarkdown,
+@@ -143,14 +144,14 @@
+     narrative: true,
+   },
+ );
+-const initialDeck = isHsbcCopyRoute
++const builtInDeck = isHsbcCopyRoute
+   ? withAIHackathons({
+       ...defaultDeck,
+       title: "Mentor Academy — AI and Mentoring · 5 slajdów",
+       slides: defaultDeck.slides.slice(0, 5),
+     })
+   : defaultDeck;
+-const STORAGE_KEY = isHsbcCopyRoute
++const builtInStorageKey = isHsbcCopyRoute
+   ? "mentor-academy-first-5-v1"
+   : isRiskEngineRoute ? RISK_ENGINE_STORAGE_KEY
+     : isAzenoRoute ? AZENO_STORAGE_KEY : WORKSHOP_STORAGE_KEY;
+@@ -258,7 +259,9 @@
+     </div>
+   );
+ }
+-export default function App() {
++export default function App({installedSeed}: {installedSeed?: {deck: Deck; revision: string}}) {
++  const initialDeck = installedSeed?.deck ?? builtInDeck;
++  const STORAGE_KEY = installedSeed ? "misja-aed-" + installedSeed.revision : builtInStorageKey;
+   const [deck, setDeck] = useState<Deck>(initialDeck);
+   const isAzeno = deck.brand === "azeno-hi-ai-control-plane";
+   const riskEngineTheme = deck.brand === RISK_ENGINE_BRAND ? deck.theme : undefined;
+@@ -338,7 +341,7 @@
+           return project.deck;
+         }
+         if (d) return d;
+-        if (isAzenoRoute || isRiskEngineRoute) return undefined;
++        if (isAzenoRoute || isRiskEngineRoute || isMisjaAedRoute) return undefined;
+         return (await loadDeck("mentor-academy-narrative-v17")) ??
+           (await loadDeck("mentor-academy-narrative-v16")) ??
+           (await loadDeck("mentor-academy-narrative-v15")) ??
+@@ -351,7 +354,8 @@
+       .then((d) => {
+         if (d && validateDeck(d)) {
+           setDeck(
+-            d.brand === RISK_ENGINE_BRAND ? prepareRiskEngineDeck(d)
++            isMisjaAedRoute ? d
++            : d.brand === RISK_ENGINE_BRAND ? prepareRiskEngineDeck(d)
+             : isRiskEngineRoute ? d
+             : isHsbcCopyRoute ? withAIHackathons(d) : isAzenoRoute || d.brand === "azeno-hi-ai-control-plane" ? prepareAzenoDeck(d) : withPawelReview(withNarrative(
+               withHistory(
+@@ -641,7 +645,7 @@
+           throw new Error(
+             "Plik nie jest poprawnym projektem Presentation Studio.",
+           );
+-        commit(value.brand === RISK_ENGINE_BRAND
++        commit(isMisjaAedRoute ? value : value.brand === RISK_ENGINE_BRAND
+           ? prepareRiskEngineDeck(value)
+           : withoutAzenoBranding(applyHSBCBrand(value)));
+         chooseSlide(value.slides[0].id);
+--- a/src/lib/model.ts
++++ b/src/lib/model.ts
+@@ -315,7 +315,7 @@
+             e.fontSize <= 160 &&
+             (e.fontFamily === undefined || font(e.fontFamily)) &&
+             (e.videoSrc === undefined ||
+-              (e.type === "image" && typeof e.videoSrc === "string" && /^\/media\/risk-engine\/[a-z0-9-]+\.mp4$/.test(e.videoSrc))) &&
++              (e.type === "image" && typeof e.videoSrc === "string" && (/^\/media\/risk-engine\/[a-z0-9-]+\.mp4$/.test(e.videoSrc) || e.videoSrc === "/media/misja-aed/demo.mp4"))) &&
+             (!e.fill || color(e.fill)) &&
+             (!e.stroke || color(e.stroke)) &&
+             (!e.geometry ||

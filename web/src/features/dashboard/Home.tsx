@@ -95,23 +95,23 @@ const shortcuts = [
     style: 'lilac',
   },
 ] as const;
-export function FavoriteServices({go}: {go: (page: Page) => void}) {
+export function FavoriteServices({ go }: { go: (page: Page) => void }) {
   return (
-      <section className="shortcuts">
-        <h2>Ulubione usługi</h2>
-        <div className="tiles">
-          {shortcuts.map(({ page, title, copy, Icon, style }) => (
-            <button key={page} onClick={() => go(page)} className="service-tile">
-              <span className={'tile-icon ' + style}>
-                <Icon size={24} />
-              </span>
-              <strong>{title}</strong>
-              <span className="tile-caption">{copy}</span>
-              <ChevronRight size={17} className="tile-chevron" />
-            </button>
-          ))}
-        </div>
-      </section>
+    <section className="shortcuts">
+      <h2>Ulubione usługi</h2>
+      <div className="tiles">
+        {shortcuts.map(({ page, title, copy, Icon, style }) => (
+          <button key={page} onClick={() => go(page)} className="service-tile">
+            <span className={'tile-icon ' + style}>
+              <Icon size={24} />
+            </span>
+            <strong>{title}</strong>
+            <span className="tile-caption">{copy}</span>
+            <ChevronRight size={17} className="tile-chevron" />
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 const wallet = [
@@ -119,7 +119,13 @@ const wallet = [
   { label: 'mPrawo jazdy', icon: IdCard, type: 'licence' },
   { label: 'Moje pojazdy', icon: CarFront, type: 'vehicles' },
 ] as const;
-export function Home({ go, documents }: { go: (p: Page) => void; documents: (title: string) => void }) {
+export function Home({
+  go,
+  documents,
+}: {
+  go: (p: Page) => void;
+  documents: (title: string) => void;
+}) {
   return (
     <div className="home-grid">
       <section className="aed-hero">
@@ -179,11 +185,22 @@ export function Home({ go, documents }: { go: (p: Page) => void; documents: (tit
       <section className="documents">
         <h2>Dokumenty</h2>
         <div className="doc-stack">
-          {wallet.map(({label,icon:Icon,type}) => (
-            <button key={type} type="button" className={'doc-card wallet-'+type} onClick={()=>documents(label)}>
+          {wallet.map(({ label, icon: Icon, type }) => (
+            <button
+              key={type}
+              type="button"
+              className={'doc-card wallet-' + type}
+              onClick={() => documents(label)}
+            >
               <span className="doc-grooves" />
-              <span className="doc-top"><Icon size={26}/><span>Wzór</span></span>
-              <span className="doc-bottom"><strong>{label}</strong><ChevronRight size={19}/></span>
+              <span className="doc-top">
+                <Icon size={26} />
+                <span>Wzór</span>
+              </span>
+              <span className="doc-bottom">
+                <strong>{label}</strong>
+                <ChevronRight size={19} />
+              </span>
             </button>
           ))}
         </div>
@@ -287,7 +304,9 @@ export function AboutView() {
         otrzymuje żądania dla oglądanego obszaru. Rozpoznawanie komend głosowych zależy od
         przeglądarki.
       </p>
-      <a className="project-link data-project-link" href="#dane">Otwórz zbiór danych AED <Database size={16}/></a>
+      <a className="project-link data-project-link" href="#dane">
+        Otwórz zbiór danych AED <Database size={16} />
+      </a>
       <a className="project-link" href="https://github.com/pawelkonior/misja-aed">
         Kod, źródła i materiały zespołu <ArrowUpRight size={16} />
       </a>
