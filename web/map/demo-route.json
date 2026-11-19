@@ -1,0 +1,128 @@
+{
+  "coordinates": [
+    [21.01415, 52.231248],
+    [21.014337, 52.231286],
+    [21.014321, 52.231329],
+    [21.015108, 52.231492],
+    [21.015542, 52.231584],
+    [21.015707, 52.231617],
+    [21.015735, 52.231626],
+    [21.015792, 52.231638],
+    [21.015873, 52.231656],
+    [21.015868, 52.231713],
+    [21.015849, 52.23192],
+    [21.015844, 52.231977],
+    [21.015821, 52.23206],
+    [21.015758, 52.232083],
+    [21.015203, 52.232305],
+    [21.015083, 52.232353],
+    [21.01496, 52.232377],
+    [21.014899, 52.232394],
+    [21.014878, 52.23239],
+    [21.014808, 52.232375],
+    [21.014564, 52.232328],
+    [21.014587, 52.232281],
+    [21.014638, 52.232176]
+  ],
+  "distance": 290.8,
+  "duration": 232.8,
+  "steps": [
+    {
+      "name": "Widok",
+      "maneuver": {
+        "bearing_after": 72,
+        "bearing_before": 0,
+        "location": [21.01415, 52.231248],
+        "type": "depart"
+      },
+      "distance": 13.5
+    },
+    {
+      "name": "",
+      "maneuver": {
+        "bearing_after": 345,
+        "bearing_before": 70,
+        "location": [21.014337, 52.231286],
+        "modifier": "left",
+        "type": "turn"
+      },
+      "distance": 4.9
+    },
+    {
+      "name": "",
+      "maneuver": {
+        "bearing_after": 70,
+        "bearing_before": 345,
+        "location": [21.014321, 52.231329],
+        "modifier": "right",
+        "type": "turn"
+      },
+      "distance": 112.1
+    },
+    {
+      "name": "",
+      "maneuver": {
+        "bearing_after": 355,
+        "bearing_before": 68,
+        "location": [21.015873, 52.231656],
+        "modifier": "left",
+        "type": "end of road"
+      },
+      "distance": 45.1
+    },
+    {
+      "name": "",
+      "maneuver": {
+        "bearing_after": 299,
+        "bearing_before": 350,
+        "location": [21.015821, 52.23206],
+        "modifier": "slight left",
+        "type": "turn"
+      },
+      "distance": 5
+    },
+    {
+      "name": "",
+      "maneuver": {
+        "bearing_after": 302,
+        "bearing_before": 299,
+        "location": [21.015758, 52.232083],
+        "modifier": "slight right",
+        "type": "fork"
+      },
+      "distance": 68.4
+    },
+    {
+      "name": "Chmielna",
+      "maneuver": {
+        "bearing_after": 251,
+        "bearing_before": 289,
+        "location": [21.014899, 52.232394],
+        "modifier": "slight left",
+        "type": "turn"
+      },
+      "distance": 24
+    },
+    {
+      "name": "",
+      "maneuver": {
+        "bearing_after": 163,
+        "bearing_before": 251,
+        "location": [21.014564, 52.232328],
+        "modifier": "left",
+        "type": "turn"
+      },
+      "distance": 17.7
+    },
+    {
+      "name": "",
+      "maneuver": {
+        "bearing_after": 0,
+        "bearing_before": 163,
+        "location": [21.014638, 52.232176],
+        "type": "arrive"
+      },
+      "distance": 0
+    }
+  ]
+}

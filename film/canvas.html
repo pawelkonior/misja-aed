@@ -1,0 +1,115 @@
+<!doctype html><html lang="pl"><meta charset="utf-8"><title>Misja AED · film</title>
+<style>*{margin:0}body{background:#102e26}canvas{display:block;width:100vw}</style>
+<canvas width="1920" height="1080" id="canvas"></canvas>
+<script>
+const scenes=@@SCENES@@, assets=@@ASSETS@@;
+const canvas=document.querySelector('canvas'), c=canvas.getContext('2d',{alpha:false});
+const imgs={}, W=1920,H=1080;
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v));
+const ease=v=>1-(1-clamp(v))**3;
+function box(x,y,w,h,r,color) {c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
+function txt(value,x,y,size,color,weight=500){c.fillStyle=color;c.font=weight+' '+size+'px system-ui, Arial, sans-serif';c.textBaseline='alphabetic';c.textAlign='left';c.fillText(value,x,y);}
+function lines(words,x,y,size,color,lh,weight=600){words.forEach((line,i)=>txt(line,x,y+i*lh,size,color,weight));}
+function cropped(img,x,y,w,h,zoom=1,ax=.5,ay=.5) {
+ const factor=Math.max(w/img.width,h/img.height)*zoom;
+ const sw=w/factor, sh=h/factor;
+ c.drawImage(img,(img.width-sw)*ax,(img.height-sh)*ay,sw,sh,x,y,w,h);
+}
+function art(img,x,y,w,h,r,zoom,ax,ay){
+ c.save();c.beginPath();c.roundRect(x,y,w,h,r);c.clip();cropped(img,x,y,w,h,zoom,ax,ay);c.restore();
+}
+function heart(x,y,scale,bg,ink){
+ c.save();c.translate(x,y);c.scale(scale,scale);
+ box(0,0,64,64,18,bg);c.fillStyle=ink;c.fill(new Path2D('M32 51 C25 46 10 37 10 25 C10 11 26 10 32 20 C38 10 54 12 54 25 C54 36 40 46 32 51Z'));
+ c.fillStyle=bg;c.fill(new Path2D('M35 18L24 34H32L28 43L42 26H33Z'));c.restore();
+}
+function progress(t,dark){
+ for(let i=0;i<scenes.length;i++){
+   const s=scenes[i], x=110+(s.start/60)*1700, w=((s.end-s.start)/60)*1700-8;
+   box(x,991,w,4,2,dark?'#47685a':'#d6e2db');
+   const f=clamp((t-s.start)/(s.end-s.start));
+   if(f>0)box(x,991,Math.max(4,f*w),4,2,dark?'#a5efd0':'#09724e');
+ }
+}
+function screen(key,local,x,y,w,h){
+ const n=Math.floor(local*6), name=key+Math.floor(n/12), img=imgs[name];
+ if(!img)return;
+ const pos=n%12;
+ c.save();c.shadowColor='#12382b40';c.shadowBlur=35;c.shadowOffsetY=18;
+ box(x-10,y-10,w+20,h+20,40,'#18342b');c.restore();
+ c.save();c.beginPath();c.roundRect(x,y,w,h,31);c.clip();
+ c.drawImage(img,(pos%4)*420,Math.floor(pos/4)*820,420,820,x,y,w,h);c.restore();
+}
+function chapter(s,t){
+ const u=t-s.start, enter=ease(u/.55), key=s.key, dark=key==='ar';
+ c.fillStyle=dark?'#103a32':'#f6f8f4';c.fillRect(0,0,W,H);
+ const ink=dark?'#f3fff8':'#102d23', secondary=dark?'#c5e1d4':'#475e51';
+ const slide=(1-enter)*22;
+ c.save();c.translate(slide,0);
+ heart(108,86,.73,dark?'#b9efd5':'#d3f2e0',dark?'#124b36':'#0a7153');
+ txt('Misja AED',171,119,31,ink,650);
+ txt(s.label,108,288,24,dark?'#a3e8c6':'#0c7453',650);
+ const fs=key==='guide'?72:key==='walk'?79:94;
+ lines(s.title,103,411,fs,ink,fs*1.07,670);
+ lines(s.copy,110,614,31,secondary,44,450);
+ if(key==='walk'){
+   art(imgs.entrance,109,706,350,178,16,1.03+u*.004,.56,.36);
+   txt('Wejście od ul. Chmielnej',486,773,24,ink,620);
+   txt('Zdjęcia dojścia: Cybularny,',486,817,21,secondary);
+   txt('CC0 / CC BY 4.0',486,846,21,secondary);
+ }else if(key==='ar'){
+   box(109,731,315,57,29,'#28564b');txt('Symulacja trasy',141,768,24,'#ddf8e8',600);
+ }else if(key==='guide'){
+   box(109,735,357,59,30,'#dfefe4');txt('Polecenie głosowe',135,774,24,'#124b35',600);
+   for(let i=0;i<13;i++){const v=13+18*Math.abs(Math.sin(u*3+i*.75));box(490+i*10,764-v/2,6,v,3,'#278863');}
+ }else{
+   box(109,735,425,59,30,'#e2efe5');txt('Warszawa  ·  scenariusz demo',135,774,23,'#194c37',590);
+ }
+ c.restore();
+ const panelX=1083;
+ box(panelX,48,723,894,48,dark?'#26594d':'#e0efe5');
+ c.save();c.beginPath();c.roundRect(panelX,48,723,894,48);c.clip();
+ c.strokeStyle=dark?'#477769':'#c2dccb';c.lineWidth=2;
+ for(let i=0;i<9;i++){c.beginPath();c.arc(panelX+570,650,165+i*52+6*Math.sin(t/7),0,Math.PI*2);c.stroke();}
+ c.restore();
+ screen(key,u,1231,84,419,818);
+ progress(t,dark);
+}
+function endCard(s,t){
+ const u=t-s.start;
+ c.fillStyle='#103c30';c.fillRect(0,0,W,H);
+ c.save();c.strokeStyle='#215340';c.lineWidth=2;
+ for(let i=0;i<15;i++){c.beginPath();c.arc(1700,470,150+i*51+6*Math.sin(u/3),0,Math.PI*2);c.stroke();}c.restore();
+ heart(110,93,.87,'#b5efd0','#0b5c43');txt('Misja AED',185,137,36,'#fff',620);
+ txt(s.label,112,294,27,'#a4e0c3',600);
+ txt('18 272',99,497,177,'#f5fff9',680);
+ txt('lokalizacje AED',109,606,85,'#eefaf1',600);
+ lines(s.copy,112,716,35,'#c5e2ce',51,430);
+ box(1152,337,555,297,30,'#1b503d');
+ txt('Źródła danych',1194,404,32,'#d9f5e4',650);
+ txt('OpenStreetMap',1194,466,28,'#fff',520);txt('18 265',1548,466,25,'#d5ecd9',600);
+ txt('Miasto Przemyśl',1194,520,28,'#fff',520);txt('21',1548,520,25,'#d5ecd9',600);
+ txt('Scalone pary',1194,574,28,'#fff',520);txt('14',1548,574,25,'#d5ecd9',600);
+ txt('Azeno Hi    /    HackNation 2026',110,910,26,'#e5f9eb',600);
+ txt('pawelkonior.github.io/misja-aed',1150,909,31,'#e5f9eb',540);progress(t,true);
+}
+function openCard(s,t){
+ c.fillStyle='#edfaf2';c.fillRect(0,0,W,H);
+ c.save();c.beginPath();c.roundRect(1035,65,775,868,44);c.clip();cropped(imgs.hero,1035,65,775,868,1+t*.009,.91,.48);c.restore();
+ heart(110,100,.86,'#126749','#fff');
+ txt('Azeno Hi',182,141,34,'#155d45',620);
+ txt(s.label,111,318,26,'#177747',650);
+ txt('Misja',99,486,151,'#103c2c',680);txt('AED',99,639,176,'#0e704d',680);
+ lines(s.copy,112,745,40,'#355848',56,450);
+ progress(t,false);
+}
+function seek(t){
+ t=clamp(t,0,59.999);const scene=scenes.find(p=>p.start<=t&&t<p.end);
+ if(scene.key==='open')openCard(scene,t);else if(scene.key==='data')endCard(scene,t);else chapter(scene,t);
+ const dt=t-scene.start;
+ if(dt<.22 && t>.01){c.fillStyle='rgba(237,247,239,'+(.72*(1-dt/.22))+')';c.fillRect(0,0,W,H);}
+}
+Promise.all(Object.entries(assets).map(([k,src])=>new Promise((resolve,reject)=>{
+ const img=new Image();img.onload=()=>{imgs[k]=img;resolve()};img.onerror=reject;img.src=src;
+}))).then(()=>{window.__anim={duration:60,width:W,height:H,canvas,seek,ready:true};seek(0);});
+</script></html>
