@@ -1,0 +1,62 @@
+{
+  "title": "Przejście ulicą Chmielną",
+  "destination": "Chmielna 21, Warszawa",
+  "attribution": "POPtravel, Cybularny, OpenAEDMap",
+  "sourceUrl": "media/aed-walk-credits.txt",
+  "cues": [
+    {
+      "start": 0,
+      "direction": "straight",
+      "text": "Idź prosto ulicą Chmielną",
+      "meters": 30,
+      "nextMeters": 12,
+      "upcomingDirection": "right",
+      "maneuver": "W prawo w bramę"
+    },
+    {
+      "start": 10,
+      "direction": "straight",
+      "text": "Wypatruj bramy nr 21 po prawej",
+      "meters": 12,
+      "nextMeters": 5,
+      "upcomingDirection": "right",
+      "maneuver": "W prawo w bramę"
+    },
+    {
+      "start": 14,
+      "direction": "right",
+      "text": "Skręć w prawo w bramę",
+      "meters": 5,
+      "nextMeters": 3,
+      "upcomingDirection": "right",
+      "maneuver": "W prawo w bramę"
+    },
+    {
+      "start": 16,
+      "direction": "straight",
+      "text": "Wejdź pod numerem 21",
+      "meters": 20,
+      "nextMeters": 20,
+      "upcomingDirection": "arrived",
+      "maneuver": "Do szafki AED"
+    },
+    {
+      "start": 19,
+      "direction": "straight",
+      "text": "Przejdź przez pasaż z muralem",
+      "meters": 3,
+      "nextMeters": 3,
+      "upcomingDirection": "arrived",
+      "maneuver": "Do szafki AED"
+    },
+    {
+      "start": 22,
+      "direction": "arrived",
+      "text": "AED w zielonej szafce",
+      "meters": 0,
+      "nextMeters": 0,
+      "upcomingDirection": "arrived",
+      "maneuver": "Na miejscu"
+    }
+  ]
+}
