@@ -18,9 +18,16 @@ if git -C "$stage" ls-remote --exit-code --heads origin "$branch" >/dev/null; th
 fi
 cp -R "$root/web/dist/." "$stage/"
 mkdir -p "$stage/materialy" "$stage/pokaz"
-cp "$root/film/player.html" "$stage/pokaz/index.html"
 cp "$root/deliverables/Misja-AED-60s.mp4" "$root/deliverables/Misja-AED.pdf" "$stage/materialy/"
 cp "$root/presentation/assets/film-poster.jpg" "$stage/materialy/plakat.jpg"
+# Keep the player in sync when a new cut replaces a previously cached video or poster.
+film_version=$(git hash-object "$stage/materialy/Misja-AED-60s.mp4")
+deck_version=$(git hash-object "$stage/materialy/Misja-AED.pdf")
+poster_version=$(git hash-object "$stage/materialy/plakat.jpg")
+sed -e "s|Misja-AED-60s\.mp4\"|Misja-AED-60s.mp4?v=${film_version}\"|g" \
+    -e "s|Misja-AED\.pdf\"|Misja-AED.pdf?v=${deck_version}\"|g" \
+    -e "s|plakat\.jpg\"|plakat.jpg?v=${poster_version}\"|g" \
+    "$root/film/player.html" > "$stage/pokaz/index.html"
 touch "$stage/.nojekyll"
 git -C "$stage" add -A
 if git -C "$stage" diff --cached --quiet; then
