@@ -9,15 +9,15 @@ import path from "node:path";
 const require = createRequire(new URL("../web/package.json", import.meta.url));
 const { chromium } = require("playwright");
 const root = fileURLToPath(new URL(".", import.meta.url));
-const out = path.join(root, "work", "silent");
+const out = path.join(root, "work", "story");
 const base = process.env.AED_DEMO_URL || "http://127.0.0.1:5194/";
-const { chapters, cardDuration } = JSON.parse(
+const { captures } = JSON.parse(
   await readFile(path.join(root, "scenes.json"), "utf8"),
 );
 const selection = process.argv.slice(2);
-if (selection.some((id) => !chapters.some((chapter) => chapter.id === id)))
+if (selection.some((id) => !captures.some((chapter) => chapter.id === id)))
   throw Error("Unknown chapter");
-const queue = chapters.filter(
+const queue = captures.filter(
   (chapter) => !selection.length || selection.includes(chapter.id),
 );
 const fps = 30;
@@ -31,16 +31,18 @@ const cancel = ".call-toast-actions button",
 const microphone = ".rescue-voice-controls button:nth-child(2)";
 const events = {
   map: [
-    [2.35, ".nearby-service"],
-    [6.45, target],
+    [2.55, ".nearby-service"],
+    [6.05, target],
+    [9.25, directions],
   ],
   help: [
-    [1.8, guide],
-    [6.35, cancel],
+    [1.55, guide],
+    [6.2, cancel],
+    [9.23, '[data-act="ar"]'],
   ],
   return: [
-    [1.85, back],
-    [6.93, '[data-act="arrive"]'],
+    [2.15, back],
+    [8.0, '[data-act="arrive"]'],
   ],
 };
 
@@ -77,7 +79,7 @@ async function touch(page, cdp, selector) {
     type: "touchEnd",
     touchPoints: [],
   });
-  return { x: x - frame.x, y: y - frame.y };
+  return { x: x - frame.x, y: y - frame.y, width: b.width, height: b.height };
 }
 async function prepare(page, ctx, cdp, id) {
   const entry = {
@@ -205,20 +207,23 @@ async function record(browser, chapter) {
     { stdio: ["pipe", "ignore", "inherit"] },
   );
   const finished = once(encoder, "close");
-  const taps = [];
+  const taps = [],
+    overlays = [];
   let changedStep = null;
   try {
     await prepare(page, ctx, cdp, scene);
     const frame = await page.locator(".phone-body").boundingBox();
     if (frame.width !== 410 || frame.height !== 864)
       throw Error("Unexpected mobile viewport");
-    const total = Math.round(
-      (chapter.end - chapter.start - cardDuration) * fps,
-    );
+    const total = Math.round(chapter.duration * fps);
     const wall = performance.now();
     for (let i = 0; i < total; i++) {
       const t = i / fps;
-      if (scene === "ar") await setWalkFrame(page, 12.95 + t);
+      if (scene === "ar") await setWalkFrame(page, 10.6 + 1.12 * t);
+      const upcoming = events[scene]?.find(
+        ([at]) => Math.round((at - 1.24) * fps) === i,
+      );
+      if (upcoming) await reveal(page, upcoming[1]);
       if (scene === "return" && i === Math.round(5.12 * fps)) {
         await ctx.setGeolocation(start);
         await page
@@ -250,6 +255,60 @@ async function record(browser, chapter) {
       } else {
         await page.clock.runFor(i % 3 === 0 ? 34 : 33);
       }
+      if (scene === "ar" && 10.6 + 1.12 * t < 16) {
+        const overlay = await page.evaluate(
+          ({ frame, sourceTime }) => {
+            const camera = document.querySelector(".ar-camera"),
+              ground = document.querySelector(".ar-guideline"),
+              counter = document.querySelector(".ar-maneuver");
+            if (!ground || !counter) return null;
+            const box = (el) => {
+              const r = el.getBoundingClientRect();
+              return [r.x - frame.x, r.y - frame.y, r.width, r.height];
+            };
+            const svg = ground.cloneNode(true);
+            const clones = [svg, ...svg.querySelectorAll("*")];
+            [ground, ...ground.querySelectorAll("*")].forEach((item, n) => {
+              const style = getComputedStyle(item),
+                dst = clones[n];
+              dst.removeAttribute("class");
+              dst.removeAttribute("style");
+              if (item === ground) return;
+              for (const prop of [
+                "opacity",
+                "stroke",
+                "stroke-width",
+                "stroke-opacity",
+                "stroke-linejoin",
+                "stroke-linecap",
+                "filter",
+                "fill",
+              ]) {
+                let val = style.getPropertyValue(prop);
+                if (val.includes("url(")) {
+                  const at = val.lastIndexOf("#");
+                  if (at >= 0)
+                    val = "url(" + val.slice(at).replace(/["']/g, "");
+                }
+                dst.style.setProperty(prop, val);
+              }
+            });
+            const r = box(ground);
+            svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+            svg.setAttribute("width", r[2]);
+            svg.setAttribute("height", r[3]);
+            return {
+              card: box(counter),
+              floor: r,
+              camera: box(camera),
+              sourceTime,
+              svg: new XMLSerializer().serializeToString(svg),
+            };
+          },
+          { frame, sourceTime: 10.6 + 1.12 * t },
+        );
+        overlays.push(overlay);
+      }
       const capture = await cdp.send("Page.captureScreenshot", {
         format: "jpeg",
         quality: 94,
@@ -261,7 +320,7 @@ async function record(browser, chapter) {
         await once(encoder.stdin, "drain");
     }
     // Verify recorded UI results before promoting a clip into the renderer.
-    if (scene === "map") await page.locator(directions).waitFor();
+    if (scene === "map") await page.locator(guide).waitFor();
     if (scene === "help" && (await page.locator(cancel).count()))
       throw Error("Countdown was not cancelled");
     if (scene === "return")
@@ -276,7 +335,12 @@ async function record(browser, chapter) {
     await rename(pending, path.join(out, scene + ".mp4"));
     await writeFile(
       path.join(out, scene + ".json"),
-      JSON.stringify({ fps, taps, changedStep }),
+      JSON.stringify({
+        fps,
+        taps,
+        changedStep,
+        ...(overlays.length ? { overlays } : {}),
+      }),
     );
     console.log(
       scene,

@@ -11,7 +11,7 @@ ffmpeg -hide_banner -loglevel error -y \
   -i work/picture.mp4 -map 0:v:0 -an -c:v copy -t 60 \
   -metadata title='Misja AED — z defibrylatorem do poszkodowanego' \
   -metadata artist='Azeno Hi' \
-  -metadata description='Niemy pokaz aplikacji mobilnej. Pięć plansz i pięć ujęć całego telefonu: mapa AED, odliczanie do połączenia, wskazówki na Chmielnej, powrót i instrukcja.' \
+  -metadata description='Historia świadkini na Chmielnej. Fotografie, ujęcia aplikacji, zaznaczenia dotyku i podświetlana narracja tekstowa. Film bez dźwięku.' \
   -metadata comment='Spacer na Chmielnej: POPtravel, CC BY 3.0. Fotografie bramy i pasażu: Cybularny, CC0 i CC BY 4.0. Zdjęcie szafki: OpenAEDMap, OSM node/14154384101, CC0. Informacje i źródła: https://github.com/pawelkonior/misja-aed/blob/main/docs/media.md' \
   -movflags +faststart work/delivery.pending.mp4
 mv work/delivery.pending.mp4 ../deliverables/Misja-AED-60s.mp4

@@ -1,10 +1,10 @@
 # Materiały zespołu i odtwarzanie filmu
 
-Film korzysta z technologii poprzedniego projektu „Zbuduj prototyp Risk Red Team”. Deterministyczna scena Canvas 2D, kontrakt `window.__anim.seek(t)`, Chromium i FFmpeg składają 1800 klatek w MP4. Pięć krótkich plansz po polsku zapowiada wybór AED, odliczanie do połączenia alarmowego, dojście z AR, powrót oraz użycie instrukcji. Po każdej planszy widać nagranie działającej aplikacji w stałym kadrze obejmującym cały telefon. Krąg wskazuje miejsce dotknięcia jeszcze przed zmianą ekranu. Film trwa 60 sekund, a plik MP4 zawiera wyłącznie obraz.
+Film korzysta z technologii poprzedniego projektu „Zbuduj prototyp Risk Red Team”. Deterministyczna scena Canvas 2D, kontrakt `window.__anim.seek(t)`, Chromium i FFmpeg składają 1800 klatek w MP4. Historia zaczyna się przy ławce, skąd świadkini rusza po AED. Widz śledzi jej drogę przez rzeczywistą bramę przy Chmielnej, odnalezienie szafki i powrót ze sprzętem. Sceny ze świadkinią przeplatają się z nagraniem działającej aplikacji. Kolejne fragmenty polskich napisów podświetlają się w trakcie ujęcia. Płynne zbliżenie i krąg wskazują miejsce dotknięcia, po którym widać reakcję aplikacji. Film trwa 60 sekund, a plik MP4 zawiera wyłącznie obraz.
 
 1. Zbuduj aplikację w `web/` poleceniem `npm ci && npm run build` i udostępnij katalog `dist`, np. przez `python3 -m http.server 5196 --bind 127.0.0.1 --directory dist`.
-2. Z katalogu głównego repozytorium uruchom `AED_DEMO_URL=http://127.0.0.1:5196/ ./film/build.sh`. Potrzebne są Chrome, Node.js, FFmpeg, Python 3 i zależności frontendu. Skrypt nagrywa interakcje w przeglądarce, składa plansze z nagraniami w Canvas i zapisuje MP4 z atrybucją materiałów.
-3. Treść plansz i kolejność ujęć określa [scenariusz filmu](../film/scenes.json). W scenie przy poszkodowanym przeglądarka podaje próbkę „dalej” przez wirtualny mikrofon. Widać, jak aplikacja przechodzi do kolejnego kroku. W samej aplikacji można też włączyć polskiego lektora. [Weryfikacja obsługi mikrofonu](demo-verification.md)
+2. Z katalogu głównego repozytorium uruchom `AED_DEMO_URL=http://127.0.0.1:5196/ ./film/build.sh`. Potrzebne są Chrome, Node.js, FFmpeg, Python 3 i zależności frontendu. Skrypt nagrywa interakcje w przeglądarce, łączy nagrania z fotografiami i napisami w Canvas i zapisuje MP4 z atrybucją materiałów.
+3. Treść narracji ekranowej i kolejność ujęć określa [scenariusz filmu](../film/scenes.json). W scenie przy poszkodowanym przeglądarka podaje próbkę „dalej” przez wirtualny mikrofon. Widać, jak aplikacja przechodzi do kolejnego kroku. W samej aplikacji można też włączyć polskiego lektora. [Weryfikacja obsługi mikrofonu](demo-verification.md)
 4. Prezentację można edytować w PowerPoint lub otworzyć jej JSON w Presentation Studio. Źródła merytoryczne zapisano również w notatkach do slajdów.
 
 ## Pochodzenie materiałów
@@ -14,7 +14,7 @@ Film korzysta z technologii poprzedniego projektu „Zbuduj prototyp Risk Red Te
 - Znak mObywatel pochodzi z publicznego serwisu informacyjnego. [Źródło znaku](https://info.mobywatel.gov.pl/apple-touch-icon.png)
 - Renderer filmu bazuje na harnessie code-animations na warunkach MIT. [Licencja](../film/harness/LICENSE)
 
-Trzy fotografie scenariusza w prezentacji przygotowano w ImageGen. Przedstawiają tę samą fikcyjną świadkinię, miejsce zdarzenia przy ławce i powrót z zieloną torbą AED. Ujęcia interfejsu przechwycono osobno z aplikacji. Zdjęcia bramy, pasażu i szafki przy Chmielnej pochodzą z opisanych niżej materiałów ulicznych. [Świadkini szuka wejścia](../presentation/assets/swiadkini-szuka-wejscia.jpg) · [Zapamiętany punkt startu](../presentation/assets/punkt-zdarzenia-przy-lawce.jpg) · [Powrót z AED](../presentation/assets/powrot-z-defibrylatorem.jpg)
+Trzy ilustracje fotograficzne do filmu i prezentacji przygotowano w ImageGen. Przedstawiają tę samą fikcyjną świadkinię, miejsce zdarzenia przy ławce i powrót z zieloną torbą AED. Ujęcia interfejsu przechwycono osobno z aplikacji. Zdjęcia bramy, pasażu i szafki przy Chmielnej pochodzą z opisanych niżej materiałów ulicznych. [Świadkini szuka wejścia](../presentation/assets/swiadkini-szuka-wejscia.jpg) · [Zapamiętany punkt startu](../presentation/assets/punkt-zdarzenia-przy-lawce.jpg) · [Powrót z AED](../presentation/assets/powrot-z-defibrylatorem.jpg)
 
 ## Nagranie ulicy w mobilnym widoku AR
 

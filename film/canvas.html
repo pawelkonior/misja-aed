@@ -1,260 +1,578 @@
 <!doctype html>
 <html lang="pl">
-  <head>
-    <meta charset="utf-8" />
-    <title>Misja AED · pokaz aplikacji</title>
-    <style>
-      * {
-        margin: 0;
+  <meta charset="utf-8" />
+  <title>Misja AED · Chmielna</title>
+  <style>
+    * {
+      margin: 0;
+    }
+    body {
+      background: #101c20;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+    }
+  </style>
+  <canvas id="film" width="1920" height="1080"></canvas>
+  <script>
+    const timeline = "@@TIMELINE@@",
+      captures = "@@CAPTURES@@",
+      sources = "@@CLIPS@@",
+      images = "@@PICTURES@@";
+    const canvas = document.getElementById("film"),
+      ctx = canvas.getContext("2d", { alpha: false });
+    const W = canvas.width,
+      H = canvas.height;
+    const film = {},
+      art = {},
+      plates = {};
+    const limit = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+    const smooth = (v) => {
+      const p = limit(v);
+      return p * p * (3 - 2 * p);
+    };
+    const step = (t, a, b) => smooth((t - a) / (b - a));
+    const blend = (a, b, t) => a + (b - a) * t;
+    const pulse = (t, a, b, c, d) => step(t, a, b) * (1 - step(t, c, d));
+    const cream = "#fffaf1",
+      amber = "#ffcf74";
+
+    function gradient(x0, y0, x1, y1, stops, g = ctx) {
+      const fill = g.createLinearGradient(x0, y0, x1, y1);
+      stops.forEach(([p, c]) => fill.addColorStop(p, c));
+      return fill;
+    }
+    function paint(g, x, y, w, h, color) {
+      g.fillStyle = color;
+      g.fillRect(x, y, w, h);
+    }
+    function imageBox(g, img, x, y, w, h, ax = 0.5, ay = 0.5) {
+      const iw = img.videoWidth || img.width,
+        ih = img.videoHeight || img.height;
+      const k = Math.max(w / iw, h / ih),
+        sw = w / k,
+        sh = h / k;
+      g.drawImage(img, (iw - sw) * ax, (ih - sh) * ay, sw, sh, x, y, w, h);
+    }
+    function plateFor(img, id) {
+      // Extend the atmosphere of the photograph; keep the visible foreground an intact, single photograph.
+      const p = document.createElement("canvas");
+      p.width = 2160;
+      p.height = 1220;
+      const g = p.getContext("2d");
+      g.save();
+      g.filter = "blur(45px) saturate(.75)";
+      imageBox(g, img, -75, -75, p.width + 150, p.height + 150, 0.35, 0.47);
+      g.restore();
+      paint(g, 0, 0, p.width, p.height, "#13222960");
+      const layer = document.createElement("canvas");
+      layer.width = 1470;
+      layer.height = p.height;
+      const fg = layer.getContext("2d");
+      imageBox(
+        fg,
+        img,
+        0,
+        0,
+        1470,
+        p.height,
+        0.5,
+        id === "bag" ? 0.57 : id === "bench" ? 0.53 : 0.28,
+      );
+      fg.globalCompositeOperation = "destination-in";
+      paint(
+        fg,
+        0,
+        0,
+        1470,
+        p.height,
+        gradient(
+          0,
+          0,
+          380,
+          0,
+          [
+            [0, "transparent"],
+            [1, "#000"],
+          ],
+          fg,
+        ),
+      );
+      g.drawImage(layer, p.width - layer.width, 0);
+      paint(
+        g,
+        0,
+        0,
+        p.width,
+        p.height,
+        gradient(
+          0,
+          0,
+          p.width * 0.68,
+          0,
+          [
+            [0, "#07181de6"],
+            [0.3, "#0b1a21ba"],
+            [0.67, "#0c1e2175"],
+            [1, "#10151a00"],
+          ],
+          g,
+        ),
+      );
+      return p;
+    }
+    function photo(id, t) {
+      const plate = plates[id];
+      const key = id === "bench" ? 0 : id === "search" ? 24.6 : 49.2;
+      const p = limit((t - key) / 6.1);
+      const mag = id === "search" ? 1.065 - 0.054 * p : 1.013 + 0.056 * p;
+      const sw = plate.width / mag,
+        sh = plate.height / mag;
+      const ox = (plate.width - sw) * (0.53 + 0.18 * p),
+        oy = (plate.height - sh) * (id === "bag" ? 0.66 : 0.42);
+      ctx.drawImage(plate, ox, oy, sw, sh, 0, 0, W, H);
+      paint(
+        ctx,
+        0,
+        0,
+        W,
+        H,
+        gradient(0, 930, 0, H, [
+          [0, "#11191d00"],
+          [1, "#101b224b"],
+        ]),
+      );
+    }
+    function ambient(t) {
+      const pan = 10 * Math.sin(t * 0.09);
+      ctx.drawImage(film.ambient, -28 + pan, -18, W + 56, H + 42);
+      paint(ctx, 0, 0, W, H, "#10252b80");
+      paint(
+        ctx,
+        0,
+        0,
+        W,
+        H,
+        gradient(0, 0, W, 0, [
+          [0, "#081c24e8"],
+          [0.32, "#081c24c7"],
+          [0.53, "#11212796"],
+          [0.69, "#19242a59"],
+          [1, "#10272b83"],
+        ]),
+      );
+      paint(
+        ctx,
+        0,
+        0,
+        W,
+        H,
+        gradient(0, 0, 0, H, [
+          [0, "#12242d2e"],
+          [0.6, "#10212800"],
+          [1, "#08181f85"],
+        ]),
+      );
+    }
+    function geometry(id, t, local) {
+      const taps = captures[id].taps;
+      let zoom = 1,
+        dx = 0,
+        dy = 0;
+      for (const tap of taps) {
+        const d = local - tap.t,
+          v = pulse(d, -1.55, -0.52, 0.2, 1.5);
+        zoom += 0.185 * v;
+        dx += (205 - tap.x) * 0.22 * v;
+        dy += (432 - tap.y) * 0.27 * v;
       }
-      body {
-        background: #122d35;
-      }
-      canvas {
-        display: block;
-        width: 100vw;
-      }
-    </style>
-  </head>
-  <body>
-    <canvas id="film" width="1920" height="1080"></canvas>
-    <script>
-      const timeline = @@TIMELINE@@;
-      const sources = @@CLIPS@@;
-      const captures = @@CAPTURES@@;
-      const canvas = document.getElementById("film");
-      const ctx = canvas.getContext("2d", { alpha: false });
-      const width = canvas.width,
-        height = canvas.height;
-      const chapters = timeline.chapters;
-      const videos = new Map();
-      const dark = "#122c34",
-        cream = "#f6f7f3",
-        ink = "#152e37",
-        muted = "#4a6769";
-      const phoneHeight = 1004;
-      const phone = {
-        width: (phoneHeight * 410) / 864,
-        height: phoneHeight,
-        x: 1196 - (phoneHeight * 410) / 864 / 2,
-        y: (height - phoneHeight) / 2,
+      // The lens changes the scale of the entire handset about the pressed control.
+      const natural =
+        id === "guide" ? 1 + 0.065 * pulse(local, -0.4, 1.5, 5.6, 7.8) : 1;
+      const h = 963 * zoom * natural,
+        w = (h * 410) / 864;
+      const entry = id === "map" ? 1 - step(t, 4.4, 5.15) : 0;
+      const centerX = 1371 + dx + 7 * Math.sin(t * 0.09) + 48 * entry;
+      return {
+        x: centerX - w / 2,
+        y: 543 - h / 2 + dy + 13 * entry,
+        w,
+        h,
+        k: h / 864,
       };
-      const qr = new Image();
-      const limit = (v, low, high) => Math.max(low, Math.min(v, high));
-      function smooth(t) {
-        const p = limit(t, 0, 1);
-        return p * p * (3 - 2 * p);
+    }
+    function traceTarget(tap, d) {
+      const emphasis = step(d, -1.14, -0.72) * (1 - step(d, -0.025, 0.08));
+      if (emphasis <= 0) return;
+      const baseW = tap.width,
+        baseH = tap.height;
+      const pad = baseW < 45 ? 8 : 5;
+      const x = tap.x - baseW / 2 - pad,
+        y = tap.y - baseH / 2 - pad,
+        w = baseW + 2 * pad,
+        h = baseH + 2 * pad;
+      const rad = baseW < 45 ? 18 : Math.min(18, h * 0.34);
+      ctx.save();
+      ctx.globalAlpha = emphasis;
+      // The hole leaves the real button and its actual label at full brightness.
+      ctx.fillStyle = "#08152050";
+      ctx.beginPath();
+      ctx.rect(0, 0, 410, 864);
+      ctx.roundRect(x, y, w, h, rad);
+      ctx.fill("evenodd");
+      ctx.shadowColor = "#ffc561";
+      ctx.shadowBlur = 11;
+      ctx.strokeStyle = "#ffd183";
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, rad);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "#321f10";
+      ctx.stroke();
+      ctx.restore();
+    }
+    function touchPulse(tap, d) {
+      if (d < -0.47 || d > 0.42) return;
+      const appear = step(d, -0.3, -0.12),
+        release = step(d, -0.005, 0.42),
+        r = 30 - 4 * appear + 18 * release;
+      // Touch contact stays clear of the lettering. Only the edge lights up.
+      ctx.save();
+      ctx.globalAlpha = appear * (1 - release);
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "#122d36bd";
+      ctx.beginPath();
+      ctx.arc(tap.x, tap.y, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 2.7;
+      ctx.strokeStyle = cream;
+      ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ffbb50";
+      ctx.beginPath();
+      ctx.arc(tap.x, tap.y, r + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    function phone(id, t, local) {
+      const a = geometry(id, t, local),
+        v = film[id];
+      ctx.save();
+      ctx.shadowColor = "#000e";
+      ctx.shadowBlur = 44;
+      ctx.shadowOffsetY = 20;
+      ctx.shadowOffsetX = 8;
+      ctx.fillStyle = "#171919";
+      ctx.beginPath();
+      ctx.roundRect(a.x + 2, a.y + 2, a.w - 4, a.h - 4, a.w * 0.146);
+      ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.translate(a.x, a.y);
+      ctx.scale(a.k, a.k);
+      ctx.beginPath();
+      ctx.roundRect(0, 0, 410, 864, 61);
+      ctx.clip();
+      ctx.drawImage(v, 0, 0, 410, 864);
+      for (const tap of captures[id].taps) {
+        const d = local - tap.t;
+        traceTarget(tap, d);
+        touchPulse(tap, d);
       }
-      function text(str, x, y, size, color, weight = 500, family = "Arial") {
-        ctx.font = weight + " " + size + "px " + family + ", sans-serif";
-        ctx.fillStyle = color;
-        ctx.textBaseline = "middle";
-        ctx.textAlign = "left";
-        ctx.fillText(str, x, y);
+      ctx.restore();
+    }
+    function label(
+      text,
+      x,
+      y,
+      size,
+      color = cream,
+      face = "Pitch",
+      align = "left",
+    ) {
+      ctx.font = "700 " + size + "px " + face + ", Arial, sans-serif";
+      ctx.textBaseline = "alphabetic";
+      ctx.textAlign = align;
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+    }
+    function wordWeight(word) {
+      return (
+        0.45 + Math.min(11, word.replace(/[^\p{L}\p{N}]/gu, "").length) * 0.13
+      );
+    }
+    function narrative(t, wide) {
+      const cue = timeline.narration.find(([a, b]) => t >= a && t < b);
+      if (!cue) return;
+      const [a, b, lines] = cue;
+      const tokens = lines.flatMap((line) => line.split(" ")),
+        weights = tokens.map(wordWeight);
+      const total = weights.reduce((s, n) => s + n, 0),
+        fraction = limit((t - a - 0.09) / (b - a - 0.29)),
+        beat = fraction * total;
+      let track = 0,
+        chosen = tokens.length - 1,
+        progress = 1;
+      for (let i = 0; i < tokens.length; i++) {
+        if (beat < track + weights[i]) {
+          chosen = i;
+          progress = limit((beat - track) / weights[i]);
+          break;
+        }
+        track += weights[i];
       }
-      function writeLines(lines, x, y, gap, size, color) {
-        lines.forEach((str, index) =>
-          text(str, x, y + index * gap, size, color, 700, "PitchBold"),
-        );
+      let x = 103,
+        maxWidth = 826,
+        fs = 76;
+      const age = t - a,
+        fade = step(age, -0.05, 0.12),
+        rise = (1 - step(age, 0, 0.22)) * 11;
+      if (wide > 0.02) {
+        // On the wide street shot the film yields the screen to the live directions.
+        x = blend(x, 100, wide);
+        fs = blend(fs, 52, wide);
+        maxWidth = blend(maxWidth, 1090, wide);
       }
-      function rule(x, y, w, h, color) {
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, w, h);
-      }
-      function card(chapter, index) {
-        ctx.fillStyle = dark;
-        ctx.fillRect(0, 0, width, height);
-        rule(188, 144, 68, 7, "#ff846d");
-        text("Misja AED", 188, 207, 37, "#f5f5ed", 700, "PitchBold");
-        text("mObywatel", 188, 259, 31, "#c2d2cf");
-        const titleY = chapter.title.length === 1 ? 486 : 436;
-        writeLines(chapter.title, 181, titleY, 113, 100, "#f6f7f3");
-        text(
-          chapter.detail,
-          188,
-          titleY + (chapter.title.length - 1) * 113 + 129,
-          41,
-          "#d4e2df",
-        );
-        progress(index, true);
-      }
-      function progress(index, onCard) {
-        const x = 190,
-          y = 923,
-          w = 52,
-          gap = 12;
-        for (let i = 0; i < chapters.length; i++)
-          rule(
-            x + i * (w + gap),
-            y,
-            w,
-            5,
-            i === index
-              ? onCard
-                ? "#ff846d"
-                : "#c74446"
-              : onCard
-                ? "#426068"
-                : "#cbd5d0",
-          );
-      }
-      function drawRings(capture, localTime) {
-        const scale = phone.height / 864;
-        for (const tap of capture.taps) {
-          const dt = localTime - tap.t;
-          if (dt < -0.58 || dt > 0.18) continue;
-          const press = smooth((dt + 0.58) / 0.4),
-            release = smooth(dt / 0.18);
-          const radius = (9 + 9 * press + 5 * release) * scale;
-          const x = phone.x + tap.x * scale,
-            y = phone.y + tap.y * scale;
-          ctx.save();
-          ctx.globalAlpha = 0.94 * press * (1 - release);
-          ctx.beginPath();
-          ctx.arc(x, y, radius, 0, 2 * Math.PI);
-          ctx.fillStyle = "#f57a2928";
-          ctx.fill();
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 3.3 * scale;
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(x, y, radius + 2.2 * scale, 0, 2 * Math.PI);
-          ctx.strokeStyle = "#ce5d20";
-          ctx.lineWidth = 2 * scale;
-          ctx.stroke();
-          ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.font = "700 " + fs + "px Pitch, Arial, sans-serif";
+      const longest = Math.max(
+        ...lines.map((line) => ctx.measureText(line).width),
+      );
+      fs *= Math.min(1, maxWidth / longest);
+      const lh = fs * 1.13;
+      const center = blend(
+        t < 4.4 ? 672 : t > 49 && t < 52.2 ? 652 : 550,
+        905,
+        wide,
+      );
+      const startY = center - (lh * (lines.length - 1)) / 2 + rise;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.font = "700 " + fs + "px Pitch, Arial, sans-serif";
+      const gap = ctx.measureText(" ").width;
+      let idx = 0;
+      for (let li = 0; li < lines.length; li++) {
+        let offset = x;
+        const y = startY + li * lh;
+        for (const word of lines[li].split(" ")) {
+          const ww = ctx.measureText(word).width;
+          ctx.shadowColor = "#05101560";
+          ctx.shadowBlur = 8;
+          ctx.fillStyle =
+            idx === chosen ? amber : idx < chosen ? "#fffaf0" : "#d3d8d4";
+          ctx.fillText(word, offset, y);
+          ctx.shadowBlur = 0;
+          if (idx === chosen) {
+            paint(
+              ctx,
+              offset,
+              y + fs * 0.12,
+              ww * (0.22 + 0.78 * smooth(progress)),
+              Math.max(3, fs * 0.052),
+              amber,
+            );
+          }
+          idx++;
+          offset += ww + gap;
         }
       }
-      function application(chapter, index, localTime) {
-        ctx.fillStyle = cream;
-        ctx.fillRect(0, 0, width, height);
-        rule(188, 331, 61, 6, "#c74446");
-        text("Misja AED", 188, 389, 30, muted, 600);
-        writeLines(chapter.label, 184, 486, 80, 64, ink);
-        if (chapter.id === "guide") {
-          ctx.fillStyle = "white";
-          ctx.fillRect(188, 603, 164, 164);
-          ctx.drawImage(qr, 197, 612, 146, 146);
-          text("Otwórz aplikację", 188, 801, 27, muted);
-        }
-        progress(index, false);
-        ctx.save();
-        ctx.shadowColor = "#1a332e45";
-        ctx.shadowBlur = 31;
-        ctx.shadowOffsetY = 10;
-        ctx.beginPath();
-        ctx.roundRect(
-          phone.x + 2,
-          phone.y + 1,
-          phone.width - 4,
-          phone.height - 2,
-          phone.width * 0.14,
-        );
-        ctx.fillStyle = "#606665";
-        ctx.fill();
-        ctx.restore();
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(
-          phone.x,
-          phone.y,
-          phone.width,
-          phone.height,
-          phone.width * 0.14,
-        );
-        ctx.clip();
-        // Draw the entire frame. The stage position, source rectangle and scale never change.
-        ctx.drawImage(
-          videos.get(chapter.id),
-          phone.x,
-          phone.y,
-          phone.width,
-          phone.height,
-        );
-        drawRings(captures[chapter.id], localTime);
-        ctx.restore();
-      }
-      async function seekVideo(video, time) {
-        const target = limit(time, 0, Math.max(0, video.duration - 1 / 30));
-        if (
-          Math.abs(target - video.currentTime) < 0.0008 &&
-          video.readyState >= 2
-        )
-          return;
-        await new Promise((resolve, reject) => {
-          const done = () => {
-            video.removeEventListener("error", error);
-            resolve();
+      ctx.restore();
+    }
+    async function seekVideo(v, time) {
+      const target = limit(time, 0, Math.max(0, v.duration - 1 / 30));
+      if (Math.abs(target - v.currentTime) < 0.0008 && v.readyState >= 2)
+        return;
+      await new Promise((ok, bad) => {
+        const done = () => {
+            v.removeEventListener("error", error);
+            ok();
+          },
+          error = () => {
+            v.removeEventListener("seeked", done);
+            bad(Error("Cannot seek video"));
           };
-          const error = () => {
-            video.removeEventListener("seeked", done);
-            reject(Error("Cannot decode app capture"));
-          };
-          video.addEventListener("seeked", done, { once: true });
-          video.addEventListener("error", error, { once: true });
-          video.currentTime = target;
-        });
-      }
-      async function seek(time) {
-        const t = limit(time, 0, timeline.duration - 0.001);
-        const index = chapters.findIndex((ch) => t >= ch.start && t < ch.end);
-        const chapter = chapters[index],
-          local = t - chapter.start;
-        if (local < timeline.cardDuration) {
-          card(chapter, index);
-          return;
-        }
-        const playback = local - timeline.cardDuration;
-        await seekVideo(videos.get(chapter.id), playback);
-        application(chapter, index, playback);
-        if (playback < 0.24) {
-          ctx.save();
-          ctx.globalAlpha = 1 - smooth(playback / 0.24);
-          card(chapter, index);
-          ctx.restore();
-        }
-      }
-      const ready = [
-        new FontFace("PitchBold", "url(" + @@TITLEFONT@@ + ")", {
-          weight: "700",
-        })
-          .load()
-          .then((f) => document.fonts.add(f)),
-        new Promise((resolve, reject) => {
-          qr.onload = resolve;
-          qr.onerror = reject;
-          qr.src = @@QR@@;
-        }),
-      ];
-      for (const [id, url] of Object.entries(sources)) {
-        ready.push(
-          new Promise((resolve, reject) => {
-            const video = document.createElement("video");
-            video.onloadeddata = () => {
-              videos.set(id, video);
-              resolve();
-            };
-            video.onerror = reject;
-            video.muted = true;
-            video.playsInline = true;
-            video.preload = "auto";
-            video.src = url;
-            video.load();
-          }),
-        );
-      }
-      Promise.all(ready).then(async () => {
-        await seek(0);
-        window.__anim = {
-          canvas,
-          width,
-          height,
-          duration: timeline.duration,
-          ready: true,
-          seek,
-          shots: chapters,
-        };
+        v.addEventListener("seeked", done, { once: true });
+        v.addEventListener("error", error, { once: true });
+        v.currentTime = target;
       });
-    </script>
-  </body>
+    }
+    async function street(local) {
+      const clip = captures.ar,
+        slot = limit(Math.round(local * clip.fps), 0, clip.overlays.length - 1);
+      const o = clip.overlays[slot],
+        source = film.ar;
+      if (!o) return;
+      await seekVideo(film.panorama, o.sourceTime);
+      ctx.drawImage(film.panorama, 0, 0, W, H);
+      const [cx, cy, cw, ch] = o.camera,
+        [gx, gy, gw, gh] = o.floor;
+      const k = Math.max(cw / 608, ch / 1080);
+      const pan = 660 + 650 * limit(((o.sourceTime * 21) / 16 - 12) / 9) ** 2;
+      const left = pan + (608 - cw / k) / 2,
+        top = (1080 - ch / k) / 2;
+      const floor = new Image();
+      await new Promise((r, j) => {
+        floor.onload = r;
+        floor.onerror = j;
+        floor.src =
+          "data:image/svg+xml;charset=utf-8," + encodeURIComponent(o.svg);
+      });
+      ctx.drawImage(
+        floor,
+        left + (gx - cx) / k,
+        top + (gy - cy) / k,
+        gw / k,
+        gh / k,
+      );
+      paint(
+        ctx,
+        0,
+        0,
+        W,
+        H,
+        gradient(0, 0, 0, H, [
+          [0, "#07182055"],
+          [0.35, "#07182000"],
+          [0.68, "#07182000"],
+          [1, "#06151edc"],
+        ]),
+      );
+      const [x, y, w, h] = o.card,
+        s = 2.5;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(90, 63, w * s, h * s, 23);
+      ctx.clip();
+      ctx.drawImage(
+        source,
+        (x * source.videoWidth) / 410,
+        (y * source.videoHeight) / 864,
+        (w * source.videoWidth) / 410,
+        (h * source.videoHeight) / 864,
+        90,
+        63,
+        w * s,
+        h * s,
+      );
+      ctx.restore();
+      label("CHMIELNA 21", W - 89, 86, 29, "#fff", "Arial", "right");
+    }
+    function photoWeight(t) {
+      if (t < 5.06) return ["bench", 1 - step(t, 4.4, 5.06)];
+      if (t > 24.79 && t < 28.5)
+        return ["search", step(t, 24.79, 25.15) * (1 - step(t, 27.8, 28.5))];
+      if (t > 48.8 && t < 52.88)
+        return ["bag", step(t, 48.8, 49.38) * (1 - step(t, 52.2, 52.88))];
+      return [null, 0];
+    }
+    function activeCapture(t) {
+      const candidates = timeline.captures.filter(
+        (s) => t >= s.start && t < s.start + s.duration,
+      );
+      return candidates[candidates.length - 1];
+    }
+    function qrMark(t) {
+      const fade = step(t, 55.9, 56.4);
+      if (!fade) return;
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = "white";
+      ctx.beginPath();
+      ctx.roundRect(106, 751, 158, 158, 10);
+      ctx.fill();
+      ctx.drawImage(art.qr, 114, 759, 142, 142);
+      label("Otwórz aplikację", 292, 833, 31, "#fff", "Arial");
+      ctx.restore();
+    }
+    async function seek(time) {
+      const t = limit(time, 0, 59.999),
+        shot = activeCapture(t);
+      const [photoId, photoAlpha] = photoWeight(t);
+      const wide = shot?.id === "ar" ? pulse(t, 29.25, 29.91, 31.97, 32.58) : 0;
+      const videoRequests = [];
+      const local = shot ? limit(t - shot.start, 0, shot.duration - 1 / 30) : 0;
+      if (photoAlpha < 0.999)
+        videoRequests.push(seekVideo(film.ambient, 0.32 + t * 0.245));
+      if (shot && photoAlpha < 0.999) {
+        // The AR touch leads directly into the witness looking up. Keep the source camera permission screen off this edit.
+        const frame = shot.id === "help" ? Math.min(local, 9.2) : local;
+        videoRequests.push(seekVideo(film[shot.id], frame));
+      }
+      await Promise.all(videoRequests);
+      if (photoAlpha < 0.999) {
+        ambient(t);
+        if (shot) phone(shot.id, t, local);
+      }
+      if (wide > 0) {
+        ctx.save();
+        ctx.globalAlpha = wide;
+        await street(local);
+        ctx.restore();
+      }
+      if (photoId && photoAlpha > 0) {
+        ctx.save();
+        ctx.globalAlpha = photoAlpha;
+        photo(photoId, t);
+        ctx.restore();
+      }
+      if (t < 4.45) {
+        ctx.save();
+        ctx.globalAlpha = 1 - step(t, 3.83, 4.45);
+        paint(ctx, 106, 164, 55, 6, amber);
+        label("Misja AED", 105, 235, 45);
+        ctx.restore();
+      }
+      narrative(t, wide);
+      qrMark(t);
+    }
+    Promise.all([
+      new FontFace("Pitch", "url(" + "@@FONT@@" + ")", { weight: "700" })
+        .load()
+        .then((f) => document.fonts.add(f)),
+      ...Object.entries(images).map(
+        ([key, url]) =>
+          new Promise((r, j) => {
+            const im = new Image();
+            im.onload = () => {
+              art[key] = im;
+              if (key !== "qr") plates[key] = plateFor(im, key);
+              r();
+            };
+            im.onerror = j;
+            im.src = url;
+          }),
+      ),
+      ...Object.entries(sources).map(
+        ([key, url]) =>
+          new Promise((r, j) => {
+            const v = document.createElement("video");
+            v.onloadeddata = () => {
+              film[key] = v;
+              r();
+            };
+            v.onerror = j;
+            v.muted = true;
+            v.playsInline = true;
+            v.preload = "auto";
+            v.src = url;
+            v.load();
+          }),
+      ),
+    ]).then(async () => {
+      await seek(0);
+      window.__anim = {
+        canvas,
+        width: W,
+        height: H,
+        duration: timeline.duration,
+        ready: true,
+        seek,
+        shots: timeline.captures,
+      };
+    });
+  </script>
 </html>

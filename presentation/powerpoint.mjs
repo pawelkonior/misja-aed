@@ -45,7 +45,7 @@ deck.theme.colorScheme = {
   },
 };
 const noLine = { fill: 'none', width: 0 };
-let filmSlide;
+let filmPoster;
 for (const [i, model] of source.slides.entries()) {
   const slide = deck.slides.add();
   slide.background.fill = model.background;
@@ -72,7 +72,7 @@ for (const [i, model] of source.slides.entries()) {
           bottom: Math.max(0, 1 - v.top - v.height),
         };
       }
-      if (e.videoSrc) filmSlide = i + 1;
+      if (e.videoSrc) filmPoster = { slide: i + 1, label: e.text };
     } else if (e.geometry === 'rect') {
       slide.shapes.add({
         geometry: 'rect',
@@ -105,7 +105,7 @@ for (const [i, model] of source.slides.entries()) {
     }
   }
 }
-if (!filmSlide) throw Error('Missing demo poster');
+if (!filmPoster) throw Error('Missing demo poster');
 const temp = path.join(root, '.tmp/govtech'),
   raw = path.join(temp, 'native.pptx'),
   fonts = path.join(temp, 'fonts.pptx');
@@ -131,9 +131,9 @@ execFileSync(
     path.join(root, 'deliverables/Misja-AED.pptx'),
     path.join(root, 'deliverables/Misja-AED-60s.mp4'),
     '--slide',
-    String(filmSlide),
+    String(filmPoster.slide),
     '--label',
-    'Film demonstracyjny Misja AED',
+    filmPoster.label,
   ],
   { stdio: 'inherit' },
 );

@@ -1,46 +1,36 @@
 {
   "duration": 60,
-  "cardDuration": 2.8,
-  "chapters": [
-    {
-      "id": "map",
-      "start": 0,
-      "end": 13,
-      "title": ["Znajdź najbliższy AED."],
-      "detail": "Drugi świadek już udziela pomocy.",
-      "label": ["Mapa AED"]
-    },
-    {
-      "id": "help",
-      "start": 13,
-      "end": 24.5,
-      "title": ["Uruchom prowadzenie."],
-      "detail": "10 sekund na anulowanie połączenia z 112.",
-      "label": ["Połączenie", "alarmowe"]
-    },
-    {
-      "id": "ar",
-      "start": 24.5,
-      "end": 38.5,
-      "title": ["Którą bramą do AED?"],
-      "detail": "Strzałki AR wskazują wejście.",
-      "label": ["Prowadzenie AR"]
-    },
-    {
-      "id": "return",
-      "start": 38.5,
-      "end": 49.5,
-      "title": ["Wróć z AED", "do poszkodowanego."],
-      "detail": "Mapa pamięta punkt startu.",
-      "label": ["Droga powrotna"]
-    },
-    {
-      "id": "guide",
-      "start": 49.5,
-      "end": 60,
-      "title": ["Otwórz instrukcję", "przy poszkodowanym."],
-      "detail": "Komenda „dalej” zmienia krok.",
-      "label": ["Instrukcja AED"]
-    }
+  "captures": [
+    { "id": "map", "start": 4.4, "duration": 11.2 },
+    { "id": "help", "start": 15.6, "duration": 9.6 },
+    { "id": "ar", "start": 27.8, "duration": 12.2 },
+    { "id": "return", "start": 40.0, "duration": 9.2 },
+    { "id": "guide", "start": 52.2, "duration": 7.8 }
+  ],
+  "narration": [
+    [0, 2.25, ["Przy ławce", "upada człowiek."]],
+    [2.25, 4.95, ["Drugi świadek pomaga.", "Ona rusza po AED."]],
+    [4.95, 8.15, ["W mObywatelu", "dotyka kafla", "z defibrylatorem."]],
+    [8.15, 11.45, ["Na mapie", "wybiera", "najbliższy AED."]],
+    [11.45, 15.35, ["Trasa gotowa.", "Otwiera", "wskazówki dojścia."]],
+    [15.35, 17.65, ["Wybiera", "„Prowadź i wezwij pomoc”."]],
+    [17.65, 20.0, ["Za 10 sekund", "telefon otworzy", "numer 112."]],
+    [20.0, 21.2, ["Świadek już dzwoni."]],
+    [21.2, 23.8, ["Dotyka „Anuluj”.", "Trasa nadal prowadzi."]],
+    [23.8, 27.0, ["Włącza tryb AR.", "Którą bramą?"]],
+    [27.0, 31.1, ["W stresie", "łatwo minąć wejście."]],
+    [31.1, 35.0, ["Jeszcze cztery metry.", "W prawo, w bramę."]],
+    [35.0, 38.0, ["Przez pasaż", "z muralem."]],
+    [38.0, 40.9, ["Zielona szafka.", "Zabiera AED."]],
+    [40.9, 44.1, ["Dotyka „Wróć", "do punktu startu”."]],
+    [44.1, 47.25, ["Telefon pamięta,", "skąd wyruszyła."]],
+    [47.25, 50.0, ["Jest już przy ławce.", "Otwiera instrukcję."]],
+    [50.0, 53.0, ["Defibrylator", "jest na miejscu."]],
+    [53.0, 56.05, ["Animacja pokazuje,", "gdzie nakleić elektrody."]],
+    [
+      56.05,
+      60.0,
+      ["Mówi „dalej”.", "Krok zmienia się", "bez dotykania ekranu."]
+    ]
   ]
 }

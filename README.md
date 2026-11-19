@@ -49,7 +49,7 @@ VITE_PUBLIC_BASE=/misja-aed/ npm run build
 
 ## Film i prezentacja
 
-- [Film MP4](deliverables/Misja-AED-60s.mp4) trwa 60 sekund i działa bez dźwięku. Każdą czynność zapowiada krótka plansza po polsku. Potem widać cały telefon, dotknięcie zaznaczone kręgiem i reakcję aplikacji. Pokaz prowadzi od wyszukania AED przez dojście z AR po powrót z urządzeniem i instrukcję przy poszkodowanym.
+- [Film MP4](deliverables/Misja-AED-60s.mp4) trwa 60 sekund i działa bez dźwięku. Film opowiada historię świadkini, która rusza po AED, gdy druga osoba pomaga przy ławce. Na Chmielnej wskazówki AR prowadzą ją do właściwej bramy. Z urządzeniem wraca do poszkodowanego. Podświetlane fragmenty napisów prowadzą narrację, a zbliżenia na przyciski i krąg dotyku pozwalają śledzić jej działania w aplikacji.
 - [Edytowalny PowerPoint](deliverables/Misja-AED.pptx) i [projekt do importu w Presentation Studio](deliverables/Misja-AED.studio.json). Jedenaście slajdów w stylu GovTech korzysta z układów oryginalnej prezentacji Risk Engine. Slajd 6 odtwarza film. Źródła znajdują się w notatkach prelegenta. [PDF wyeksportowany ze Studia](deliverables/Misja-AED.pdf) · [Otwórz projekt w lokalnym Studio](http://127.0.0.1:5174/?deck=misja-aed) · [Instalacja w Presentation Studio](studio/README.md).
 - [Źródła filmu, ilustracje i odtwarzanie renderu](docs/media.md) · [Research usług AED i interfejsu mObywatela](docs/research.md).
 

@@ -223,26 +223,34 @@ for (const [x, asset, alt, heading, body] of instructionPanels) {
 }
 meta('Polecenia dyspozytora i urządzenia mają pierwszeństwo.', 326, 614, 881, 27, 15);
 
-const { chapters } = JSON.parse(fs.readFileSync(path.join(root, 'film/scenes.json'), 'utf8'));
-const filmChapters = chapters
-  .map(({ start, label }) => `${start.toLocaleString('pl-PL')} s  ${label.join(' ')}`)
+const { captures } = JSON.parse(fs.readFileSync(path.join(root, 'film/scenes.json'), 'utf8'));
+const captureLabels = {
+  map: 'Wybór urządzenia i trasa piesza',
+  help: 'Odliczanie do połączenia i przycisk „Anuluj”',
+  ar: 'Wskazówki AR do bramy i szafki',
+  return: 'Powrót do zapisanego miejsca startu',
+  guide: 'Animacja elektrod i komenda „dalej”',
+};
+const screenTimings = captures
+  .map(({ start, id }) => `${start.toLocaleString('pl-PL')} s  ${captureLabels[id]}`)
   .join('\n');
 slide(
   'Po AED i z powrotem',
-  'W trybie pokazu naciśnij obraz, aby odtworzyć film. Każda plansza zapowiada czynność, którą za chwilę wykona świadek. Krąg na ekranie telefonu wskazuje miejsce dotknięcia.\n\n' + filmChapters,
+  'W trybie pokazu naciśnij obraz, aby odtworzyć film. Przy ławce zostaje osoba udzielająca pomocy. Świadkini rusza po AED, znajduje szafkę w pasażu przy Chmielnej i wraca z urządzeniem. Podświetlane napisy prowadzą narrację. Zbliżenie i krąg pokazują, co wybiera na telefonie.\n\n' + screenTimings,
   [
     source + '/releases/latest/download/Misja-AED-60s.mp4',
     source + '/tree/main/film',
+    source + '/blob/main/docs/media.md',
     demo,
   ],
   'dark',
 );
 rect(72, 164, 840, 474, colors.darkPanel, colors.slate);
-pic('film-poster.jpg', 'Film demonstracyjny Misja AED', 73, 165, 838, 471.375, {
+pic('film-poster.jpg', 'Film Misja AED. Świadkini przynosi zieloną torbę z AED do poszkodowanego przy ławce.', 73, 165, 838, 471.375, {
   videoSrc: '/media/misja-aed/demo.mp4',
 });
 label('60 s', 951, 190, 241, 110, 86, colors.cyan);
-txt('Świadek znajduje AED i wraca z nim na miejsce zdarzenia.', 953, 312, 249, 175, 25, {
+txt('Świadkini znajduje szafkę w pasażu przy Chmielnej i wraca z AED do poszkodowanego.', 953, 312, 249, 175, 25, {
   color: colors.paper,
   bold: true,
 });
