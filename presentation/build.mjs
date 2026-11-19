@@ -15,7 +15,7 @@ const catalog = demo + 'data/catalog.json';
 const bracia = 'https://www.openstreetmap.org/node/14154384101';
 const merged = 'https://www.openstreetmap.org/node/4024070186';
 const photoSource = 'https://commons.wikimedia.org/?curid=';
-const erc = 'https://www.prc.krakow.pl/wp-content/uploads/2025/11/WytResusc_netv2.pdf';
+const erc = 'https://www.erc.edu/media/wrhj5sye/gl2025-04-bls-e.pdf';
 const reading = JSON.parse(fs.readFileSync(path.join(root, 'web/public/data/catalog.json')));
 const features = JSON.parse(
   fs.readFileSync(path.join(root, 'web/public/data/aed-polska.geojson')),
@@ -115,28 +115,35 @@ function framed(asset, alt, x, y, w, h) {
   rect(x, y, w, h, colors.gray, colors.line);
   pic(asset, alt, x + 4, y + 4, w - 8, h - 8);
 }
+function storyFrame(x, w, asset, alt, heading, body) {
+  pic(asset, alt, x, 170, w, 300, { fit: 'cover' });
+  if (x + w < 1208) meta('→', x + w + 2, 296, 24, 42, 21, colors.red);
+  rect(x, 488, 35, 4, colors.red);
+  label(heading, x, 509, w, 53, 31);
+  txt(body, x, 560, w, 85, 21);
+}
 const mission = 'Misja AED';
 slide(
   mission,
-  'Azeno Hi proponuje usługę w mObywatelu i wspólny zbiór o AED dla Polski. Prototyp na wyzwanie Departamentu Zarządzania Danymi Ministerstwa Cyfryzacji można uruchomić w przeglądarce. Okładka przedstawia ilustrację torby AED przygotowaną w ImageGen.',
+  'Azeno Hi proponuje usługę w mObywatelu i wspólny zbiór o AED dla Polski. Prototyp na wyzwanie Departamentu Zarządzania Danymi Ministerstwa Cyfryzacji można uruchomić w przeglądarce. Okładka pokazuje aktualny ekran aplikacji z usługą Defibrylator w pobliżu.',
   [gov, demo, source + '/blob/main/docs/media.md'],
   'cover',
 );
 rect(957, 0, 323, 720, colors.red);
-rect(795, 144, 372, 405, colors.paper, colors.ink);
-rect(795, 144, 52, 5, colors.ink);
+rect(825, 80, 342, 560, colors.paper, colors.ink);
+rect(825, 80, 52, 5, colors.ink);
 rect(72, 78, 40, 5, colors.red);
 meta('Azeno Hi', 127, 61, 270, 34, 21);
 title(mission, 69, 218, 690, 158, 132);
-txt('Otwarty rejestr defibrylatorów\ni droga do urządzenia w mObywatelu', 74, 386, 701, 125, 32, {
+txt('Otwarty zbiór AED dla Polski.\nZ mObywatelem po urządzenie\ni z powrotem do poszkodowanego.', 74, 386, 701, 125, 32, {
   color: colors.navy,
 });
-pic('aed-okladka.jpg', 'Ilustracja torby AED przygotowana w ImageGen', 815, 166, 332, 359);
+pic('pulpit-telefon.jpg', 'Aktualny ekran aplikacji. Wśród ulubionych usług na pulpicie mObywatela znajduje się Defibrylator w pobliżu.', 857, 99, 278, 522);
 meta('HackNation 2026  /  Misja AED – dane na ratunek', 74, 623, 700, 29, 15);
 
 slide(
-  '111 metrów do pinezki. 291 metrów do AED.',
-  'Trasa demonstracyjna zaczyna się przy ul. Widok w Warszawie i prowadzi do budynku Braci Jabłkowskich. Odległość geodezyjna to 111 m, a zapisany wynik routingu pieszego FOSSGIS/OSRM to 291 m. Wejście od ul. Chmielnej 21 prowadzi do pasażu. Osoba przy poszkodowanym dzwoni pod 112 i wykonuje polecenia dyspozytora. Po AED idzie drugi świadek. Mapa © OpenStreetMap contributors, ODbL. Fotografia podwórza: Cybularny, CC BY 4.0; zdjęcie wykadrowane.',
+  '111 metrów do pinezki. 291 metrów pieszo',
+  'Trasa demonstracyjna zaczyna się przy ul. Widok w Warszawie i prowadzi do budynku Braci Jabłkowskich. Odległość geodezyjna to 111 m, a zapisany wynik routingu pieszego FOSSGIS/OSRM to 291 m. Wejście od ul. Chmielnej 21 prowadzi do pasażu. Osoba przy poszkodowanym dzwoni pod 112 i wykonuje polecenia dyspozytora. Po AED idzie drugi świadek. Gdy w aplikacji wybierze prowadzenie z wezwaniem pomocy, widzi odliczanie i opcję anulowania. Połączenie z numerem alarmowym potwierdza w telefonie. Mapa © OpenStreetMap contributors, ODbL. Fotografia podwórza: Cybularny, CC BY 4.0; zdjęcie wykadrowane.',
   [
     bracia,
     'https://routing.openstreetmap.de/about.html',
@@ -171,6 +178,71 @@ rect(72, 598, 36, 4, colors.red);
 txt('Po AED idzie drugi świadek. Pierwszy zostaje przy poszkodowanym.', 123, 584, 1070, 53, 24, {
   bold: true,
 });
+
+slide(
+  'Którą bramą do AED?',
+  'Pinezka prowadzi na właściwą ulicę. Drugi świadek musi jeszcze znaleźć wejście i szafkę. Na Chmielnej jasne strzałki pokazują skręt do bramy numer 21. W trybie kamery aplikacja używa odczytów GPS i kompasu. Pokazany kadr pochodzi z działającego interfejsu nałożonego na rzeczywiste nagranie POPtravel (CC BY 3.0). Odległość w nagraniu jest przybliżona. Ostatnie zdjęcie przedstawia faktyczny AED z OpenAEDMap (CC0). Pierwsza scena to ilustracja ImageGen.',
+  [demo + '#nagranie', demo + 'media/aed-walk-credits.txt', bracia, photoSource + '199081043', source + '/blob/main/docs/media.md'],
+);
+storyFrame(72, 332, 'swiadkini-szuka-wejscia.jpg', 'Ilustracja sytuacji. Świadkini szuka wejścia przy warszawskiej ulicy',
+  'Kilka podobnych wejść', 'Świadkini ma adres. W stresie trudno jej wybrać bramę.');
+storyFrame(429, 410, 'hud-brama.jpg', 'Zbliżenie działającego ekranu AR. Jasne strzałki na chodniku skręcają w prawo, w stronę bramy',
+  'Skręt pod numerem 21', 'Strzałki na obrazie chodnika pokazują, gdzie wejść z ulicy.');
+pic('hud-wskazowka.jpg', 'Powiększona wskazówka z tego samego kadru. Około czterech metrów, w prawo w bramę.', 439, 181, 169, 64);
+storyFrame(864, 344, 'urzadzenie.jpg', 'Autentyczne zdjęcie zielonej szafki AED przy tablicach w pasażu Braci Jabłkowskich',
+  'Szafka przy tablicach', 'Zdjęcie z pasażu pomaga rozpoznać urządzenie na ścianie.');
+
+slide(
+  'Jak wrócić z AED do poszkodowanego?',
+  'Zapamiętujemy miejsce, w którym drugi świadek uruchamia prowadzenie. W tym scenariuszu robi to przy poszkodowanym na ulicy Widok. Z szafką za plecami wybiera powrót do punktu startu. Aplikacja prowadzi do zapisanej pozycji, nawet jeśli adres nie jest znany świadkowi. Środkowa ilustracja to kadr działającej mapy powrotnej. Trasę odczytano z wyniku routingu pieszego, z kontrolowanymi współrzędnymi na obu końcach. Pierwsza i ostatnia scena są ilustracjami ImageGen.',
+  [demo + '#mapa', source + '/tree/main/web/map', 'https://routing.openstreetmap.de/about.html', 'https://www.openstreetmap.org/copyright', source + '/blob/main/docs/media.md'],
+);
+storyFrame(72, 332, 'punkt-zdarzenia-przy-lawce.jpg', 'Ilustracja miejsca zdarzenia: jedna osoba zostaje przy poszkodowanym, druga odchodzi po AED',
+  'Punkt przy poszkodowanym', 'Kiedy świadkini rusza po AED, telefon zapisuje jej pozycję GPS.');
+storyFrame(429, 410, 'mapa-powrot.jpg', 'Mapa aplikacji. Fioletowa linia od AED na Chmielnej do flagi oznaczającej start przy ulicy Widok',
+  'Powrót do punktu startu', 'Ze znalezionym AED wybiera drogę powrotną. Na ul. Widok to 291 m.');
+rect(429, 449, 140, 21, colors.paper);
+meta('© OpenStreetMap', 436, 451, 129, 17, 12, colors.slate);
+storyFrame(864, 344, 'powrot-z-defibrylatorem.jpg', 'Ilustracja sytuacji: świadkini wraca z zieloną torbą AED do osoby udzielającej pomocy przy ławce',
+  'AED przy poszkodowanym', 'Po powrocie może otworzyć instrukcję i słuchać poleceń AED.');
+
+slide(
+  'Instrukcja mówi. Świadek ma wolne ręce',
+  'Po przyniesieniu AED do poszkodowanego zastosuj się do poleceń dyspozytora i urządzenia. Aplikacja odczytuje kroki po polsku oraz pokazuje animacje dla dorosłych. Po włączeniu obsługi głosowej wypowiedzenie słowa „dalej” przełącza ekran. Ilustracje pokazują dokładnie dwa kolejne kadry działającej aplikacji. W filmie demonstracyjnym można posłuchać polskiego lektora.',
+  [demo + '#instrukcja', erc, 'https://www.gov.pl/web/mswia/pierwsza-pomoc', source + '/tree/main/web/src/features/rescue'],
+);
+pic('instrukcja-telefon.jpg', 'Działający ekran aplikacji z animowanym krokiem o elektrodach i obudową telefonu', 72, 165, 215, 453);
+const instructionPanels = [
+  [327, 'elektrody.png', 'Ułożenie elektrod na schemacie klatki piersiowej dorosłego', 'Naklej elektrody', 'Lektor czyta krok, a animacja pokazuje ułożenie elektrod.'],
+  [788, 'analiza-rytmu.png', 'Uniesiona dłoń na animacji o odsunięciu się od poszkodowanego', 'Odsuń się na polecenie AED', 'Na komendę „dalej” aplikacja przechodzi do następnego kroku.'],
+];
+for (const [x, asset, alt, heading, body] of instructionPanels) {
+  framed(asset, alt, x, 243, 418, 176);
+  label(heading, x, 449, 420, 51, 32);
+  txt(body, x, 509, 420, 85, 22);
+}
+meta('Polecenia dyspozytora i urządzenia mają pierwszeństwo.', 326, 614, 881, 27, 15);
+
+slide(
+  'Po AED i z powrotem',
+  'Film prowadzi przez bieżącą wersję aplikacji. Pokazuje wybór urządzenia, dojście przez bramę, odnalezienie szafki, drogę do zapisanego punktu startu i instrukcję. W pokazie slajdów naciśnij obraz, aby rozpocząć odtwarzanie.',
+  [
+    source + '/releases/latest/download/Misja-AED-60s.mp4',
+    source + '/tree/main/film',
+    demo,
+  ],
+  'dark',
+);
+rect(72, 164, 840, 474, colors.darkPanel, colors.slate);
+pic('film-poster.jpg', 'Film demonstracyjny Misja AED', 73, 165, 838, 471.375, {
+  videoSrc: '/media/misja-aed/demo.mp4',
+});
+label('60 s', 951, 190, 241, 110, 86, colors.cyan);
+txt('Świadek znajduje AED i wraca z nim na miejsce zdarzenia.', 953, 312, 249, 175, 25, {
+  color: colors.paper,
+  bold: true,
+});
+meta('Polski lektor', 954, 574, 240, 36, 16, '#ACCDD6');
 
 slide(
   'Dwa źródła, ' + pretty(n) + ' lokalizacje',
@@ -217,102 +289,6 @@ txt('„Urząd Miejski w Przemyślu”', 659, 423, 550, 98, 26);
 rect(72, 544, 1136, 1, colors.line);
 txt('Jedna pozycja i oba odsyłacze źródłowe.', 72, 563, 1120, 47, 26, { bold: true });
 meta('Zgodne adresy i opisy  /  WGS84: 49.7812117° N, 22.7751538° E', 72, 610, 1120, 30, 16);
-
-slide(
-  'Wejście od Chmielnej',
-  'Kolejne fotografie pochodzą z lokalizacji rzeczywistej. Zdjęcia ulicy i pasażu są autorstwa Cybularnego. Pierwsze udostępniono na CC0, drugie na CC BY 4.0. Ostatnie zdjęcie urządzenia pochodzi z OpenAEDMap i ma oznaczenie CC0. W prezentacji wykorzystano kadry z tych fotografii. Aplikacja sortuje materiały referencyjne na podstawie odległości i kierunku dojścia; dostępność zdjęć zależy od rekordu.',
-  [
-    photoSource + '199081043',
-    photoSource + '199080251',
-    bracia,
-    'https://creativecommons.org/licenses/by/4.0/',
-    'https://creativecommons.org/publicdomain/zero/1.0/',
-  ],
-);
-const triptych = [
-  [
-    'wejscie.jpg',
-    'Brama od ul. Chmielnej 21',
-    'Brama z numerem 21',
-    'Wejdź od strony ul. Chmielnej.',
-  ],
-  [
-    'pasaz.jpg',
-    'Pasaż Braci Jabłkowskich z muralem',
-    'Pasaż z muralem',
-    'Przejdź w głąb podwórza.',
-  ],
-  [
-    'urzadzenie.jpg',
-    'Rzeczywista szafka AED w pasażu',
-    'Zielona szafka AED',
-    'Szukaj jej w tunelu przy tablicach.',
-  ],
-];
-for (const [i, [asset, alt, head, body]] of triptych.entries()) {
-  const x = 72 + i * 384;
-  pic(asset, alt, x, 200, 368, 301);
-  rect(x, 520, 32, 4, colors.red);
-  label(head, x, 542, 369, 52, 33);
-  txt(body, x, 594, 368, 49, 19);
-}
-
-slide(
-  'Od ekranu głównego do instrukcji',
-  'Film przedstawia działający prototyp mObywatela. Pokazuje mapę, wybór urządzenia, zdjęcia, trasę, demonstrację AR i instrukcję. Ujęcia symulacji są podpisane. Film ma 60 sekund, polską ścieżkę lektorską i format 1920 × 1080. W pokazie slajdów naciśnij obraz, aby rozpocząć odtwarzanie.',
-  [
-    source + '/releases/download/hacknation-demo/Misja-AED-60s.mp4',
-    source + '/tree/main/film',
-    demo,
-  ],
-  'dark',
-);
-rect(72, 164, 840, 474, colors.darkPanel, colors.slate);
-pic('film-poster.jpg', 'Film demonstracyjny Misja AED', 73, 165, 838, 471.375, {
-  videoSrc: '/media/misja-aed/demo.mp4',
-});
-label('60 s', 951, 190, 241, 110, 86, colors.cyan);
-txt('Wybór AED, dojście i instrukcja dla świadka.', 953, 312, 249, 175, 25, {
-  color: colors.paper,
-  bold: true,
-});
-meta('Polski lektor', 954, 574, 240, 36, 16, '#ACCDD6');
-
-slide(
-  'Co widzi świadek przy AED',
-  'Lewy kadr przedstawia oznaczony tryb symulacji AR oparty na rzeczywistym zdjęciu trasy. W terenie aplikacja korzysta z obrazu tylnej kamery, pozycji GPS, orientacji telefonu i polilinii trasy. Po dotarciu użytkownik odszukuje AED i potwierdza, że ma je przy poszkodowanym. Prawy kadr to animacja naklejania elektrod z instruktażu dla dorosłych. Wezwij pomoc pod 112 i stosuj się do wskazówek dyspozytora. Po przyniesieniu AED należy włączyć urządzenie i słuchać jego komunikatów. Polski lektor czyta kroki, a zgodne przeglądarki rozpoznają komendę „dalej”.',
-  [
-    demo + '#ar',
-    demo + '#instrukcja',
-    erc,
-    'https://www.gov.pl/web/mswia/pierwsza-pomoc',
-    photoSource + '199080251',
-  ],
-);
-const cols = [
-  {
-    x: 72,
-    w: 547,
-    asset: 'ar-kadr.jpg',
-    alt: 'Kadr modułu AR w demonstracji, ze znacznikiem na fotografii prawdziwego pasażu',
-    head: 'Kierunek w kamerze',
-    body: 'GPS i kompas przybliżają kierunek. Świadek potwierdza odnalezienie AED.',
-  },
-  {
-    x: 662,
-    w: 546,
-    asset: 'elektrody.png',
-    alt: 'Kadr animacji. Elektrody na klatce piersiowej dorosłego',
-    head: 'Instrukcja z lektorem',
-    body: 'Słuchaj AED. Komenda „dalej” zmienia krok instrukcji dla dorosłych.',
-  },
-];
-for (const c of cols) {
-  framed(c.asset, c.alt, c.x, 189, c.w, 239);
-  label(c.head, c.x, 450, c.w, 54, 36);
-  txt(c.body, c.x, 506, c.w, 86, 23);
-}
-meta('Gdy osoba nie reaguje, zadzwoń pod 112 i słuchaj dyspozytora.', 72, 611, 1136, 31, 16);
 
 slide(
   'Gdzie brakuje danych terenowych',
@@ -379,7 +355,7 @@ meta('GeoJSON  /  CSV  /  XML harwestera 1.13', 72, 590, 558, 44, 18);
 txt('Import na dane.gov.pl uruchamia uprawniony wydawca.', 646, 582, 560, 60, 20, { bold: true });
 
 const team = JSON.parse(fs.readFileSync(path.join(dir, 'team-layout.json')));
-team.code = '10';
+team.code = String(slides.length + 1).padStart(2, '0');
 team.notes =
   'Zespół Azeno Hi prowadzą Paweł Konior (AI Applied) i Przemysław Stanisz (ML Applied). W zespole są również Andrzej Grzyb, Piotr Lipiński, Rafał Krupa i Tomasz Tracz. Portrety i układ zespołu pochodzą z prezentacji przekazanej przez Azeno Hi.';
 team.sources =

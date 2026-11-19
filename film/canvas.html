@@ -1,117 +1,565 @@
-<!doctype html><html lang="pl"><meta charset="utf-8"><title>Misja AED · pokaz prototypu</title>
-<style>*{margin:0}body{background:#f5f6fa}canvas{display:block;width:100vw}</style>
-<canvas width="1920" height="1080" id="canvas"></canvas>
-<script>
-const shots=@@SHOTS@@, cues=@@WORDS@@, mic=@@MIC@@, sources=@@CLIPS@@, art=@@IMAGES@@, route=@@ROUTE@@;
-const canvas=document.querySelector('canvas'), ctx=canvas.getContext('2d',{alpha:false});
-const v={}, im={}, W=1920,H=1080,C={bg:'#f5f6fa',ink:'#142238',sub:'#506170',red:'#d62a46',blue:'#135a9e',line:'#cbd3da'};
-const clamp=(n,a=0,b=1)=>Math.min(b,Math.max(a,n));
-const smooth=n=>{const k=clamp(n);return k*k*(3-2*k)};
-const lerp=(a,b,n)=>a+(b-a)*clamp(n);
-function rect(x,y,w,h,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
-function text(s,x,y,size,color=C.ink,weight=600,align='left'){
- ctx.fillStyle=color;ctx.font=weight+' '+size+'px -apple-system, Arial, sans-serif';
- ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillText(s,x,y);
-}
-function line(x,y,X,Y,width,color){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(X,Y);ctx.stroke();}
-function dot(x,y,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
-function ring(x,y,r,width,c){ctx.strokeStyle=c;ctx.lineWidth=width;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();}
-function wordCaption(t,center=false){
- const cue=cues.find(e=>t>=e.a&&t<e.b);if(!cue)return;
- const hot=cue.words.findLastIndex(o=>o.t<=t);
- let size=center?98:48, gap=center?25:14;
- ctx.font='700 '+size+'px Arial,sans-serif';
- let widths=cue.words.map(o=>ctx.measureText(o.w).width), total=widths.reduce((a,b)=>a+b,0)+(widths.length-1)*gap;
- if(total>1770){const f=1770/total;size*=f;gap*=f;widths=widths.map(i=>i*f);total=1770;}
- let x=(W-total)/2, y=center?520:1008;
- cue.words.forEach((o,i)=>{
-   if(i===hot){rect(x-6,y-size*.59,widths[i]+12,size*1.20,5,C.red);}
-   ctx.font='700 '+size+'px Arial,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle=i===hot?'white':C.ink;ctx.fillText(o.w,x,y+1);
-   x+=widths[i]+gap;
- });
-}
-const merc=n=>Math.asinh(Math.tan(n*Math.PI/180))*180/Math.PI;
-const mapScale=1900/.0165, p=([lon,lat])=>[(lon-21.0055)*mapScale,(merc(52.236)-merc(lat))*mapScale];
-const raw=route.map(p), X0=Math.min(...raw.map(v=>v[0]))-19, Y0=Math.min(...raw.map(v=>v[1]))-21;
-const norm = raw.map(v=>[(v[0]-X0)*2.04+160,(v[1]-Y0)*2.04+139]);
-function trace(points,f,col,width){
- const lens=points.slice(1).map((pt,i)=>Math.hypot(pt[0]-points[i][0],pt[1]-points[i][1]));
- let distance=f*lens.reduce((a,b)=>a+b,0);ctx.beginPath();ctx.moveTo(...points[0]);ctx.lineJoin='round';ctx.lineCap='round';
- for(let i=0;i<lens.length;i++){const v=points[i+1],u=points[i],k=clamp(distance/(lens[i]||1));ctx.lineTo(lerp(u[0],v[0],k),lerp(u[1],v[1],k));distance-=lens[i];if(distance<=0)break;}
- ctx.strokeStyle=col;ctx.lineWidth=width;ctx.stroke();
-}
-function opener(t){
- const bx=84,by=85,bw=1040,bh=743;
- ctx.save();ctx.beginPath();ctx.roundRect(bx,by,bw,bh,12);ctx.clip();
- // The projection, roads and polyline use the same OSM geometry as the actual demo.
- const ox=160-X0*2.04, oy=139-Y0*2.04;
- ctx.drawImage(im.map,ox,oy,1900*2.04,1598.1*2.04);
- ctx.fillStyle='#ffffff70';ctx.fillRect(bx,by,bw,bh);
- const origin=norm[0],end=norm.at(-1);ctx.setLineDash([11,13]);trace([origin,end],smooth(t/.75),'#7f8d9c',5);ctx.setLineDash([]);
- trace(norm,smooth((t-.95)/1.65),'white',19);trace(norm,smooth((t-.95)/1.65),C.blue,10);
- dot(...origin,21,'white');dot(...origin,15,C.blue);
- const pulse=(t%1.25)/1.25;ctx.save();ctx.globalAlpha=(1-pulse)*.64;ring(...end,20+27*pulse,4,C.red);ctx.restore();dot(...end,21,'white');dot(...end,14,C.red);
- rect(origin[0]-100,origin[1]+29,198,49,4,'#fff');text('ul. Widok',origin[0],origin[1]+54,28,C.ink,660,'center');
- rect(end[0]-94,end[1]-62,188,45,4,'white');text('AED',end[0],end[1]-39,30,C.red,720,'center');ctx.restore();
- text('WARSZAWA  /  CHMIELNA 21',1190,165,25,C.sub,650);
- text('111 m',1180,287,110,C.ink,710);text('w linii prostej',1190,374,40,C.sub,490);
- line(1190,452,1730,452,2,C.line);ctx.save();ctx.globalAlpha=smooth((t-.78)/.5);
- text('291 m',1180,564,110,C.red,710);text('drogą pieszą',1190,653,40,C.sub,490);ctx.restore();
- text('© OpenStreetMap  /  trasa piesza FOSSGIS',93,865,21,C.sub,450);
- wordCaption(t);
-}
-function close(t){
- const phase=smooth((t-56.2)/1.1);
- const total=Math.round(lerp(18265,18272,phase));
- text('MISJA AED',138,179,35,C.red,720);
- text(total.toLocaleString('pl-PL'),123,420,178,C.ink,720);
- text('lokalizacje defibrylatorów',140,562,66,C.ink,600);
- rect(139,657,Math.max(2,410*phase),6,1,C.red);
- text('Azeno Hi   /   HackNation 2026',140,779,34,C.sub,550);
- ctx.drawImage(im.qr,1300,183,365,365);text('Otwórz działające demo',1484,606,34,C.ink,650,'center');
- text('pawelkonior.github.io/misja-aed',1484,664,28,C.sub,500,'center');
- wordCaption(t);
-}
-function setTime(video,t){
- const wanted=clamp(t,0,video.duration-.035);
- if(Math.abs(video.currentTime-wanted)<.001&&video.readyState>=2)return Promise.resolve();
- return new Promise((resolve,reject)=>{
-  const finish=()=>{video.removeEventListener('error',fail);resolve()};
-  const fail=()=>{video.removeEventListener('seeked',finish);reject(Error('Video decoding failed'))};
-  video.addEventListener('seeked',finish,{once:true});video.addEventListener('error',fail,{once:true});video.currentTime=wanted;
- });
-}
-async function seek(time){
- const t=clamp(time,0,59.999);const [key,a,b]=shots.find(s=>t>=s[1]&&t<s[2]);
- ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
- if(key==='open'){opener(t);return}
- if(key==='close'){close(t);return}
- if(key==='turn'){
-   const split=smooth((t-a)/.22);
-   line(960-85*split,392,960+85*split,392,5,C.red);
-   wordCaption(t,true);return;
- }
- const vid=v[key];
- let sourceTime=(t-a)/(b-a)*vid.duration;
- if(key==='voice'){
-   const guide=[[42.6,0],[45.05,mic.clickRead],[46.59,mic.clickMute],[47.15,mic.clickMic],[49.05,mic.speechOnset],[49.83,mic.stepFour],[51.8,vid.duration]];
-   const slot=guide.findIndex((p,i)=>i>0&&t<=p[0]);
-   const lo=guide[slot-1],hi=guide[slot];
-   sourceTime=lerp(lo[1],hi[1],(t-lo[0])/(hi[0]-lo[0]));
- }
- await setTime(vid,sourceTime);
- const x=126,y=16,w=1668,h=w*9/16;
- ctx.save();ctx.shadowBlur=14;ctx.shadowColor='#1e314c25';ctx.shadowOffsetY=3;rect(x,y,w,h,8,'#fff');ctx.restore();
- ctx.save();ctx.beginPath();ctx.roundRect(x,y,w,h,8);ctx.clip();ctx.drawImage(vid,x,y,w,h);ctx.restore();
- rect(x+2,y,w-4,5,2,C.red);
- if(key==='ar'||key==='arrival'){
-   // This mark is retained even when the recording zooms beyond the in-app mode label.
-   rect(x+w-303,y+13,285,41,4,'#132c2af2');text('SYMULACJA MARSZU',x+w-159,y+34,21,'#fff',700,'center');
- }
- wordCaption(t);
-}
-Promise.all([
- ...Object.entries(art).map(([k,src])=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{im[k]=i;res()};i.onerror=rej;i.src=src})),
- ...Object.entries(sources).map(([k,src])=>new Promise((res,rej)=>{const e=document.createElement('video');e.muted=true;e.playsInline=true;e.preload='auto';e.onloadeddata=()=>{v[k]=e;res()};e.onerror=rej;e.src=src;e.load()}))
-]).then(async()=>{await seek(0);window.__anim={duration:60,width:W,height:H,canvas,seek,ready:true,shots};});
-</script></html>
+<!doctype html>
+<html lang="pl">
+  <meta charset="utf-8" /><title>Misja AED · pokaz na telefonie</title>
+  <style>
+    * {
+      margin: 0;
+    }
+    body {
+      background: #f7f7f5;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+    }
+  </style>
+  <canvas width="1920" height="1080" id="canvas"></canvas>
+  <script>
+    const shots = @@SHOTS@@,
+      cues = @@WORDS@@,
+      sources = @@CLIPS@@,
+      motion = @@MOTION@@,
+      images = @@IMAGES@@;
+    const W = 1920,
+      H = 1080,
+      canvas = document.querySelector("canvas"),
+      c = canvas.getContext("2d", { alpha: false });
+    const arts = {},
+      videos = {},
+      ink = "#132b36",
+      muted = "#445c65",
+      red = "#ca203b",
+      paper = "#f7f8f6",
+      white = "#fff";
+    const headings = {
+      home: ["mObywatel", "Defibrylator w pobliżu"],
+      choose: ["Dojście pieszo", "Od pozycji do trasy"],
+      call: ["Połączenie alarmowe", "Dziesięć sekund na decyzję"],
+      street: ["Chmielna, Warszawa", "Którędy do wejścia?"],
+      turn: ["Chmielna, Warszawa", "W prawo przy bramie"],
+      cabinet: ["Chmielna 21", "Zielona szafka w pasażu"],
+      return: ["Droga powrotna", "Z AED do poszkodowanego"],
+      guide: ["Instrukcja AED", "Obraz i głos"],
+      voice: ["Instrukcja AED", "Przejście głosem"],
+    };
+    const bound = (v, min, max) => Math.max(min, Math.min(max, v));
+    const clamp = (n) => bound(n, 0, 1);
+    const easing = (n) => {
+      n = clamp(n);
+      return n * n * (3 - 2 * n);
+    };
+    function rr(x, y, w, h, r) {
+      c.beginPath();
+      c.roundRect(x, y, w, h, r);
+    }
+    function fill(x, y, w, h, r, col) {
+      c.fillStyle = col;
+      rr(x, y, w, h, r);
+      c.fill();
+    }
+    function label(
+      str,
+      x,
+      y,
+      size,
+      color = ink,
+      weight = 600,
+      align = "left",
+      face = "Arial",
+    ) {
+      c.fillStyle = color;
+      c.font = weight + " " + size + "px " + face + ", Arial, sans-serif";
+      c.textAlign = align;
+      c.textBaseline = "middle";
+      c.fillText(str, x, y);
+    }
+    function line(x, y, xx, yy, col, lw = 1) {
+      c.strokeStyle = col;
+      c.lineWidth = lw;
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(xx, yy);
+      c.stroke();
+    }
+    function cover(img, x, y, w, h, zoom = 1, ax = 0.5, ay = 0.5) {
+      const scale = Math.max(w / img.width, h / img.height) * zoom,
+        sw = w / scale,
+        sh = h / scale;
+      c.drawImage(
+        img,
+        (img.width - sw) * ax,
+        (img.height - sh) * ay,
+        sw,
+        sh,
+        x,
+        y,
+        w,
+        h,
+      );
+    }
+    function caption(t, dark = false) {
+      const cue = cues.find((a) => a.a <= t && t < a.b);
+      if (!cue) return;
+      const idx = cue.words.findLastIndex((w) => w.t <= t);
+      let size = 44,
+        gap = 13;
+      c.font = "bold " + size + "px Arial,sans-serif";
+      let widths = cue.words.map(({ w }) => c.measureText(w).width);
+      let total =
+        widths.reduce((sum, v) => sum + v, 0) + gap * (widths.length - 1);
+      if (total > 1710) {
+        let ratio = 1710 / total;
+        size *= ratio;
+        gap *= ratio;
+        total *= ratio;
+        widths = widths.map((w) => w * ratio);
+      }
+      let x = (W - total) / 2,
+        y = 1003;
+      for (let i = 0; i < cue.words.length; i++) {
+        if (i === idx)
+          fill(x - 6, y - size * 0.6, widths[i] + 12, size * 1.23, 5, red);
+        label(
+          cue.words[i].w,
+          x,
+          y + 1,
+          size,
+          dark || i === idx ? white : ink,
+          700,
+        );
+        x += widths[i] + gap;
+      }
+    }
+    function rings(track, t, mapX, mapY, scale) {
+      for (const tap of track.taps) {
+        const dt = t - tap.t;
+        if (dt < -0.4 || dt > 0.18) continue;
+        const press = easing((dt + 0.4) / 0.4);
+        const release = easing(dt / 0.18);
+        const X = mapX(tap.x),
+          Y = mapY(tap.y),
+          radius = (8 + 11 * press + 7 * release) * scale;
+        c.save();
+        c.globalAlpha = 0.98 * press * (1 - release);
+        c.beginPath();
+        c.arc(X, Y, radius, 0, 2 * Math.PI);
+        c.fillStyle = "#f4793530";
+        c.fill();
+        c.strokeStyle = "white";
+        c.lineWidth = 4 * scale;
+        c.stroke();
+        c.beginPath();
+        c.arc(X, Y, radius + 2.1 * scale, 0, 2 * Math.PI);
+        c.strokeStyle = "#de6823";
+        c.lineWidth = 1.6 * scale;
+        c.stroke();
+        c.restore();
+      }
+    }
+    function opener(t) {
+      c.fillStyle = "#122a35";
+      c.fillRect(0, 0, W, H);
+      c.save();
+      c.beginPath();
+      c.rect(0, 0, 1150, 921);
+      c.clip();
+      cover(
+        arts.scene,
+        0,
+        -10,
+        1150,
+        941,
+        1.015 + (0.032 * t) / 3.5,
+        0.32,
+        0.5,
+      );
+      c.restore();
+      const g = c.createLinearGradient(916, 0, 1160, 0);
+      g.addColorStop(0, "#122a3500");
+      g.addColorStop(1, "#122a35");
+      c.fillStyle = g;
+      c.fillRect(916, 0, 255, 923);
+      const dy = 15 * (1 - easing(t / 0.56));
+      fill(1170, 212 + dy, 94 * easing(t / 0.52), 8, 1, "#ff755f");
+      label("Misja AED", 1170, 295 + dy, 38, "#f2f7f6", 700);
+      label(
+        "Kto pobiegnie",
+        1165,
+        423 + dy,
+        84,
+        white,
+        700,
+        "left",
+        "PitchBold",
+      );
+      label("po AED?", 1165, 531 + dy, 100, white, 700, "left", "PitchBold");
+      label("Chmielna 21, Warszawa", 1170, 653 + dy, 32, "#c2d1d4", 500);
+      line(94, 927, 1826, 927, "#52656b", 1.2);
+      caption(t, true);
+    }
+    function ending(t) {
+      const local = t - 56.4;
+      c.fillStyle = "#132d37";
+      c.fillRect(0, 0, W, H);
+      c.save();
+      c.beginPath();
+      c.rect(0, 0, 786, 924);
+      c.clip();
+      cover(arts.bag, 0, 0, 786, 924, 1.02 + (0.019 * local) / 3.6, 0.57, 0.47);
+      c.restore();
+      const grad = c.createLinearGradient(690, 0, 795, 0);
+      grad.addColorStop(0, "#132d3700");
+      grad.addColorStop(1, "#132d37");
+      c.fillStyle = grad;
+      c.fillRect(690, 0, 106, 925);
+      const shift = 14 * (1 - easing(local / 0.45));
+      fill(870, 167 + shift, 76, 7, 1, "#ff785f");
+      label("Misja AED", 870, 230 + shift, 34, "#dbeae9", 700);
+      label("18 272", 864, 381 + shift, 118, white, 700, "left", "PitchBold");
+      label("lokalizacje AED", 870, 507 + shift, 53, white, 700);
+      label(
+        "Jeden otwarty zbiór dla Polski.",
+        870,
+        578 + shift,
+        33,
+        "#b6cdcf",
+        500,
+      );
+      fill(1487, 255, 286, 286, 18, white);
+      c.drawImage(arts.qr, 1507, 275, 246, 246);
+      label("Uruchom aplikację", 1630, 583, 27, "#e8f3ef", 650, "center");
+      line(870, 672, 1792, 672, "#4a6268", 1.5);
+      label("Azeno Hi  ·  HackNation", 870, 745, 30, "#e9f3f1", 600);
+      line(94, 927, 1826, 927, "#52656b", 1.2);
+      caption(t, true);
+    }
+    function slide(key, t, local, length, sourceTime) {
+      const info = headings[key],
+        track = motion[key],
+        vid = videos[key],
+        last = track.track.length - 1;
+      c.fillStyle = paper;
+      c.fillRect(0, 0, W, H);
+      // An unbroken material surface under the editorial magnification.
+      const radial = c.createRadialGradient(347, 500, 50, 347, 500, 607);
+      radial.addColorStop(0, "#e3e8e7");
+      radial.addColorStop(1, paper);
+      c.fillStyle = radial;
+      c.fillRect(0, 0, 980, 925);
+      const rise = 9 * (1 - easing(local / 0.34));
+      const zoom = 1 + 0.012 * easing(local / length);
+      const ph = 863 * zoom,
+        pw = (ph * 410) / 864,
+        px = 155 + 5 * Math.sin(t * 0.13),
+        py = 51 + (864 - ph) / 2 + rise;
+      c.save();
+      c.shadowColor = "#09272f30";
+      c.shadowBlur = 39;
+      c.shadowOffsetX = 7;
+      c.shadowOffsetY = 16;
+      fill(px, py, pw, ph, pw * 0.146, "#c1c6c5");
+      c.restore();
+      c.save();
+      rr(px, py, pw, ph, pw * 0.146);
+      c.clip();
+      c.drawImage(vid, px, py, pw, ph);
+      rings(
+        track,
+        sourceTime,
+        (x) => px + (x * pw) / 410,
+        (y) => py + (y * ph) / 864,
+        pw / 410,
+      );
+      c.restore();
+      const x = 702,
+        y = 219 + rise,
+        w = 1106,
+        h = w / 1.67;
+      fill(x, 66, 71, 6, 1, red);
+      label(info[0], x, 112 + rise, 29, muted, 630);
+      let fs = key === "call" ? 59 : 65;
+      label(info[1], x - 4, 170 + rise, fs, ink, 700, "left", "PitchBold");
+      c.save();
+      c.shadowColor = "#1b324314";
+      c.shadowBlur = 20;
+      c.shadowOffsetY = 6;
+      fill(x, y, w, h, 20, white);
+      c.restore();
+      const [fx, fy, cw] =
+          track.track[bound(Math.round(sourceTime * track.fps), 0, last)],
+        ch = cw / 1.67;
+      const sx = fx - cw / 2,
+        sy = fy - ch / 2;
+      c.save();
+      rr(x, y, w, h, 20);
+      c.clip();
+      c.drawImage(
+        vid,
+        (sx * vid.videoWidth) / 410,
+        (sy * vid.videoHeight) / 864,
+        (cw * vid.videoWidth) / 410,
+        (ch * vid.videoHeight) / 864,
+        x,
+        y,
+        w,
+        h,
+      );
+      const scale = w / cw;
+      rings(
+        track,
+        sourceTime,
+        (tx) => x + (tx - sx) * scale,
+        (ty) => y + (ty - sy) * scale,
+        scale,
+      );
+      c.restore();
+      c.strokeStyle = "#c7cfce";
+      c.lineWidth = 1.4;
+      rr(x, y, w, h, 20);
+      c.stroke();
+      line(96, 930, 1824, 930, "#d5dddd", 2);
+      line(96, 930, 96 + (1728 * t) / 60, 930, red, 3);
+      caption(t);
+    }
+    async function setMediaTime(video, t) {
+      const target = bound(t, 0, video.duration - 1 / 31);
+      if (
+        Math.abs(target - video.currentTime) < 0.0008 &&
+        video.readyState >= 2
+      )
+        return;
+      await new Promise((ok, fail) => {
+        const done = () => {
+            video.removeEventListener("error", error);
+            ok();
+          },
+          error = () => {
+            video.removeEventListener("seeked", done);
+            fail(Error("Street decoding failed"));
+          };
+        video.addEventListener("seeked", done, { once: true });
+        video.addEventListener("error", error, { once: true });
+        video.currentTime = target;
+      });
+    }
+    async function streetView(t, local, key) {
+      const source = videos[key],
+        clip = motion[key],
+        frame = bound(
+          Math.round(local * clip.fps),
+          0,
+          clip.overlays.length - 1,
+        ),
+        o = clip.overlays[frame];
+      if (!o) return;
+      const wide = videos.panorama;
+      await setMediaTime(wide, o.sourceTime);
+      c.drawImage(wide, 0, 0, W, H);
+      // Project the *recorded DOM artwork* onto the uncropped frame of the same
+      // licensed street video. The original phone cut is 608x1080; its gate pan
+      // is documented in the source film, at a speed ratio of 21/16.
+      const filmSourceSeconds = (o.sourceTime * 21) / 16;
+      const cropX =
+        660 + 650 * Math.pow(clamp((filmSourceSeconds - 12) / 9), 2);
+      const [cx, cy, cw, ch] = o.camera;
+      const pixel = Math.max(cw / 608, ch / 1080);
+      const cropLeft = cropX + (608 - cw / pixel) / 2,
+        cropTop = (1080 - ch / pixel) / 2;
+      const [gx, gy, gw, gh] = o.floor;
+      const floor = new Image();
+      await new Promise((res, rej) => {
+        floor.onload = res;
+        floor.onerror = rej;
+        floor.src =
+          "data:image/svg+xml;charset=utf-8," + encodeURIComponent(o.svg);
+      });
+      c.drawImage(
+        floor,
+        cropLeft + (gx - cx) / pixel,
+        cropTop + (gy - cy) / pixel,
+        gw / pixel,
+        gh / pixel,
+      );
+      const shade = c.createLinearGradient(0, 0, 0, 238);
+      shade.addColorStop(0, "#081d29a8");
+      shade.addColorStop(1, "#081d2900");
+      c.fillStyle = shade;
+      c.fillRect(0, 0, W, 238);
+      const bottom = c.createLinearGradient(0, 842, 0, H);
+      bottom.addColorStop(0, "#081d2900");
+      bottom.addColorStop(0.6, "#081d29bb");
+      bottom.addColorStop(1, "#081d29f2");
+      c.fillStyle = bottom;
+      c.fillRect(0, 842, W, H - 842);
+      const [mx, my, mw, mh] = o.card;
+      const s = 2.4;
+      c.save();
+      rr(93, 62, mw * s, mh * s, 21);
+      c.clip();
+      c.drawImage(
+        source,
+        (mx * source.videoWidth) / 410,
+        (my * source.videoHeight) / 864,
+        (mw * source.videoWidth) / 410,
+        (mh * source.videoHeight) / 864,
+        93,
+        62,
+        mw * s,
+        mh * s,
+      );
+      c.restore();
+      label(
+        "Chmielna 21  ·  Warszawa",
+        W - 95,
+        90,
+        31,
+        "#f4faf7",
+        600,
+        "right",
+      );
+      label("Nagranie przejścia", W - 95, 136, 26, "#e3eae6", 500, "right");
+      caption(t, true);
+    }
+    async function fullArt(t, local, key) {
+      const v = videos[key],
+        track = motion[key],
+        slot = bound(Math.round(local * track.fps), 0, track.track.length - 1);
+      const { panel, title } = track.art[slot],
+        [ax, ay, aw, ah] = panel;
+      c.fillStyle = "#eaf5ef";
+      c.fillRect(0, 0, W, H);
+      const width = 1180,
+        height = (width * ah) / aw,
+        x = (W - width) / 2,
+        y = 170;
+      fill(95, 78, 64, 6, 1, "#0d785b");
+      label("Instrukcja AED", 94, 138, 32, "#214e43", 700);
+      c.save();
+      rr(x, y, width, height, 40);
+      c.clip();
+      c.drawImage(
+        v,
+        (ax * v.videoWidth) / 410,
+        (ay * v.videoHeight) / 864,
+        (aw * v.videoWidth) / 410,
+        (ah * v.videoHeight) / 864,
+        x,
+        y,
+        width,
+        height,
+      );
+      c.restore();
+      label(title, W / 2, 749, 68, "#173c30", 700, "center", "PitchBold");
+      line(96, 930, 1824, 930, "#b1d7c8", 2);
+      caption(t);
+    }
+    async function seek(time) {
+      const t = bound(time, 0, 59.999);
+      const [key, a, b] = shots.find((s) => t >= s[1] && t < s[2]);
+      if (key === "open") {
+        opener(t);
+        return;
+      }
+      if (key === "close") {
+        ending(t);
+        return;
+      }
+      const v = videos[key],
+        local = t - a;
+      let source = local;
+      if (key === "voice") {
+        const cue = motion.voice;
+        const map = [
+          [a, Math.max(0, cue.speechOn - 0.04)],
+          [54.28, Math.min(cue.speechOn + 0.53, cue.advancedAt - 0.07)],
+          [54.57, cue.advancedAt],
+          [b, v.duration - 1 / 30],
+        ];
+        const i = map.findIndex((p, j) => j > 0 && t <= p[0]),
+          lo = map[i - 1],
+          hi = map[i];
+        source = lo[1] + (hi[1] - lo[1]) * clamp((t - lo[0]) / (hi[0] - lo[0]));
+      }
+      const target = bound(source, 0, v.duration - 1 / 31);
+      if (Math.abs(target - v.currentTime) > 0.0008 || v.readyState < 2) {
+        await new Promise((ok, fail) => {
+          const done = () => {
+              v.removeEventListener("error", error);
+              ok();
+            },
+            error = () => {
+              v.removeEventListener("seeked", done);
+              fail(Error("Cannot decode " + key));
+            };
+          v.addEventListener("seeked", done, { once: true });
+          v.addEventListener("error", error, { once: true });
+          v.currentTime = target;
+        });
+      }
+
+      if (key === "turn") {
+        await streetView(t, local, key);
+      } else if (key === "street" && t > 28.35) {
+        const blend = easing((t - 28.35) / 0.72);
+        if (blend < 1) slide(key, t, local, b - a, target);
+        c.save();
+        c.globalAlpha = blend;
+        await streetView(t, local, key);
+        c.restore();
+      } else if ((key === "guide" && t > 52.38) || key === "voice") {
+        const blend = easing((t - 52.38) / 0.47);
+        if (blend < 1) slide(key, t, local, b - a, target);
+        c.save();
+        c.globalAlpha = blend;
+        await fullArt(t, target, key);
+        c.restore();
+      } else slide(key, t, local, b - a, target);
+    }
+    Promise.all([
+      new FontFace("PitchBold", "url(" + @@TITLEFONT@@ + ")", {
+        weight: "700",
+      })
+        .load()
+        .then((f) => document.fonts.add(f)),
+      ...Object.entries(images).map(
+        ([id, src]) =>
+          new Promise((r, j) => {
+            const im = new Image();
+            im.onload = () => {
+              arts[id] = im;
+              r();
+            };
+            im.onerror = j;
+            im.src = src;
+          }),
+      ),
+      ...Object.entries(sources).map(
+        ([id, src]) =>
+          new Promise((r, j) => {
+            const v = document.createElement("video");
+            v.muted = true;
+            v.playsInline = true;
+            v.preload = "auto";
+            v.onloadeddata = () => {
+              videos[id] = v;
+              r();
+            };
+            v.onerror = j;
+            v.src = src;
+            v.load();
+          }),
+      ),
+    ]).then(async () => {
+      await seek(0);
+      window.__anim = {
+        canvas,
+        width: W,
+        height: H,
+        duration: 60,
+        ready: true,
+        seek,
+        shots,
+      };
+    });
+  </script>
+</html>

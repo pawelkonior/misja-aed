@@ -3,138 +3,143 @@
     [
       "open",
       0,
-      3.7
+      3.5
     ],
     [
       "home",
-      3.7,
-      8.9
+      3.5,
+      9.6
     ],
     [
-      "map",
-      8.9,
-      13.5
+      "choose",
+      9.6,
+      16.4
     ],
     [
-      "detail",
-      13.5,
-      17.6
+      "call",
+      16.4,
+      24.0
     ],
     [
-      "photos",
-      17.6,
-      23.2
-    ],
-    [
-      "route",
-      23.2,
-      28.8
+      "street",
+      24.0,
+      31.4
     ],
     [
       "turn",
-      28.8,
-      30.6
+      31.4,
+      36.4
     ],
     [
-      "ar",
-      30.6,
-      37.1
+      "cabinet",
+      36.4,
+      42.1
     ],
     [
-      "arrival",
-      37.1,
-      42.6
+      "return",
+      42.1,
+      49.0
+    ],
+    [
+      "guide",
+      49.0,
+      53.75
     ],
     [
       "voice",
-      42.6,
-      51.8
-    ],
-    [
-      "data",
-      51.8,
-      56.2
+      53.75,
+      56.4
     ],
     [
       "close",
-      56.2,
+      56.4,
       60
     ]
   ],
   "cues": [
     {
       "a": 0,
-      "b": 3.7,
-      "line": "Widzisz punkt na mapie. Którędy wejść po AED?"
+      "b": 3.5,
+      "line": "Ktoś upada. Świadek wzywa pomoc."
     },
     {
-      "a": 3.7,
-      "b": 5.8,
-      "line": "Jedna osoba prowadzi RKO."
+      "a": 3.5,
+      "b": 6.25,
+      "line": "Jedna osoba uciska klatkę piersiową."
     },
     {
-      "a": 5.8,
-      "b": 8.9,
+      "a": 6.25,
+      "b": 9.6,
       "line": "Druga otwiera mapę AED w mObywatelu."
     },
     {
-      "a": 8.9,
-      "b": 13.5,
-      "line": "W Warszawie wybiera urządzenie przy Chmielnej."
+      "a": 9.6,
+      "b": 12.5,
+      "line": "Telefon zaznacza jej pozycję."
     },
     {
-      "a": 13.5,
-      "b": 17.6,
-      "line": "W opisie czyta: w tunelu, obok tablic."
+      "a": 12.5,
+      "b": 16.4,
+      "line": "Dotyka urządzenia. Trasa piesza jest już gotowa."
     },
     {
-      "a": 17.6,
-      "b": 20.4,
-      "line": "Porównaj wejście ze zdjęciem."
+      "a": 16.4,
+      "b": 20.7,
+      "line": "Za dziesięć sekund telefon otworzy numer alarmowy."
     },
     {
-      "a": 20.4,
-      "b": 23.2,
-      "line": "W galerii znajdziesz też szafkę."
+      "a": 20.7,
+      "b": 24.0,
+      "line": "Świadek już dzwoni, więc wybiera „Anuluj”."
     },
     {
-      "a": 23.2,
-      "b": 28.8,
-      "line": "Od ulicy Widok trasa piesza ma 291 metrów."
+      "a": 24.0,
+      "b": 27.4,
+      "line": "Przed nią Chmielna. Którą bramę wybrać?"
     },
     {
-      "a": 28.8,
-      "b": 30.6,
-      "line": "Gdzie teraz skręcić?"
+      "a": 27.4,
+      "b": 31.4,
+      "line": "Strzałki prowadzą chodnikiem i odliczają metry do skrętu."
     },
     {
-      "a": 30.6,
-      "b": 33.5,
-      "line": "Obracamy telefon, żeby znaleźć kierunek."
+      "a": 31.4,
+      "b": 34.2,
+      "line": "Jeszcze cztery metry, w prawo."
     },
     {
-      "a": 33.5,
-      "b": 37.1,
-      "line": "Znacznik prowadzi do kolejnego zakrętu."
+      "a": 34.2,
+      "b": 36.4,
+      "line": "Brama numer dwadzieścia jeden."
     },
     {
-      "a": 37.1,
-      "b": 39.8,
-      "line": "Przy celu szukamy znaku AED."
+      "a": 36.4,
+      "b": 39.1,
+      "line": "Dalej przez pasaż z muralem."
     },
     {
-      "a": 39.8,
-      "b": 42.6,
-      "line": "Zabieramy urządzenie do poszkodowanego."
+      "a": 39.1,
+      "b": 42.1,
+      "line": "Zielona szafka. Tu jest defibrylator."
     },
     {
-      "a": 42.6,
-      "b": 45.05,
-      "line": "Animacja pokazuje kolejny krok."
+      "a": 42.1,
+      "b": 45.5,
+      "line": "Zabiera urządzenie i wybiera powrót."
     },
     {
-      "a": 45.05,
-      "b": 46.59,
+      "a": 45.5,
+      "b": 49.0,
+      "line": "Telefon pamięta, skąd ruszyła po pomoc."
+    },
+    {
+      "a": 49.0,
+      "b": 52.2,
+      "line": "Przy poszkodowanym otwiera instrukcję głosową."
+    },
+    {
+      "a": 52.2,
+      "b": 53.75,
       "line": "Naklej elektrody.",
       "audio": "krok-3",
       "trim": 1.49,
@@ -145,38 +150,20 @@
       ]
     },
     {
-      "a": 46.59,
-      "b": 49.05,
-      "line": "Włączamy mikrofon i mówimy…"
-    },
-    {
-      "a": 49.05,
-      "b": 49.83,
+      "a": 53.75,
+      "b": 54.56,
       "line": "Dalej.",
       "mic": true
     },
     {
-      "a": 49.83,
-      "b": 51.8,
-      "line": "Otwiera się krok czwarty."
+      "a": 54.56,
+      "b": 56.4,
+      "line": "Bez dotykania ekranu."
     },
     {
-      "a": 51.8,
-      "b": 56.2,
-      "line": "Ten sam zbiór można pobrać dla całej Polski."
-    },
-    {
-      "a": 56.2,
+      "a": 56.4,
       "b": 60,
-      "line": "18 272 lokalizacje do publikacji na dane.gov.pl.",
-      "words": [
-        "18 272",
-        "lokalizacje",
-        "do",
-        "publikacji",
-        "na",
-        "dane.gov.pl."
-      ]
+      "line": "Otwarty zbiór łączy ponad osiemnaście tysięcy lokalizacji."
     }
   ]
 }
