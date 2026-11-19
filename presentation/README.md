@@ -13,7 +13,7 @@ node presentation/powerpoint.mjs
 
 Pierwsze polecenie tworzy `deliverables/Misja-AED.studio.json` z lokalnych plików i samodzielnie osadza obrazy jako data URI. Drugie czyta ten sam model i eksportuje edytowalne obiekty PowerPoint. Wymaga pakietu Node.js `@oai/artifact-tool` z biblioteką `skia-canvas` oraz Pythona z `lxml`. Przy korzystaniu z zewnętrznej instalacji można ustawić `NODE_PATH` i `PYTHON`. Flaga `--preview` zapisuje PNG każdego slajdu w prywatnym katalogu roboczym `.tmp/govtech/`.
 
-Slajd 6 w pokazie Studio odtwarza `/media/misja-aed/demo.mp4`. Pod tym adresem Studio ma udostępniać plik `deliverables/Misja-AED-60s.mp4`. W pliku PPTX ten sam film jest dołączony do pakietu razem z plakatem i krojami pisma. Do oglądania filmu w PowerPoint służy jego tryb pokazu.
+Slajd 6 w pokazie Studio odtwarza `/media/misja-aed/demo.mp4`. Pod tym adresem Studio udostępnia plik `deliverables/Misja-AED-60s.mp4`. Film trwa minutę i nie ma ścieżki dźwiękowej. Każdą czynność zapowiada krótka plansza, po której widać cały ekran telefonu. W pliku PPTX ten sam film jest dołączony do pakietu razem z plakatem i krojami pisma. Do oglądania filmu w PowerPoint służy jego tryb pokazu.
 
 ## Zasoby
 

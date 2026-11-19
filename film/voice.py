@@ -4,9 +4,12 @@ import json
 import subprocess as sp
 from pathlib import Path
 root = Path(__file__).resolve().parent
+timeline = json.loads((root/'scenes.json').read_text())
+if not timeline.get('cues'):
+    print('Ten montaż nie ma ścieżki dźwiękowej. Nie ma narracji do wygenerowania.')
+    raise SystemExit(0)
 work = root / 'work' / 'voice'
 work.mkdir(parents=True, exist_ok=True)
-timeline = json.loads((root/'scenes.json').read_text())
 clips, timings = [], []
 def run(*args):
     sp.run(args, check=True, stdout=sp.DEVNULL)

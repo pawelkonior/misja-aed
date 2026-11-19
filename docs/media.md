@@ -1,15 +1,15 @@
 # Materiały zespołu i odtwarzanie filmu
 
-Film korzysta z technologii poprzedniego projektu „Zbuduj prototyp Risk Red Team”. Deterministyczna scena Canvas 2D, kontrakt `window.__anim.seek(t)`, Chromium i FFmpeg składają 1800 klatek w MP4. Ujęcia pochodzą z działającego mobilnego interfejsu w Chromium. Krąg pojawia się w miejscu dotknięcia. Zbliżenia pokazują automatycznie wytyczoną trasę, odliczanie do połączenia alarmowego, zakręt w AR, wybór powrotu i animację elektrod. Kolejne słowa podświetlają się wraz z polską narracją. Osobne źródło narracji umożliwia odtworzenie filmu bez dostępu do usługi głosowej.
+Film korzysta z technologii poprzedniego projektu „Zbuduj prototyp Risk Red Team”. Deterministyczna scena Canvas 2D, kontrakt `window.__anim.seek(t)`, Chromium i FFmpeg składają 1800 klatek w MP4. Pięć krótkich plansz po polsku zapowiada wybór AED, odliczanie do połączenia alarmowego, dojście z AR, powrót oraz użycie instrukcji. Po każdej planszy widać nagranie działającej aplikacji w stałym kadrze obejmującym cały telefon. Krąg wskazuje miejsce dotknięcia jeszcze przed zmianą ekranu. Film trwa 60 sekund, a plik MP4 zawiera wyłącznie obraz.
 
 1. Zbuduj aplikację w `web/` poleceniem `npm ci && npm run build` i udostępnij katalog `dist`, np. przez `python3 -m http.server 5196 --bind 127.0.0.1 --directory dist`.
-2. Z katalogu głównego repozytorium uruchom `AED_DEMO_URL=http://127.0.0.1:5196/ ./film/build.sh`. Potrzebne są Chrome, Node, FFmpeg, Python 3 i zależności frontendu. Skrypt pakuje nagrania jako media dla sceny Canvas, następnie renderuje klatki w Chromium.
-3. Teksty narracji, czas oraz tytuły znajdują się w [scenariuszu](../film/scenes.json). Po zmianie tekstów można odtworzyć ścieżkę na macOS z polskim głosem Zosia przez `python3 film/voice.py`. W repozytorium jest gotowa ścieżka AAC, osobna próbka komendy „dalej” oraz znaczniki czasu podpisów. W scenie instrukcji słychać głos z aplikacji i tę samą próbkę „dalej”, którą rozpoznał Vosk przez wirtualny mikrofon w Chromium. Nagranie ekranu pokazuje zmianę kroku po rozpoznaniu komendy.
+2. Z katalogu głównego repozytorium uruchom `AED_DEMO_URL=http://127.0.0.1:5196/ ./film/build.sh`. Potrzebne są Chrome, Node.js, FFmpeg, Python 3 i zależności frontendu. Skrypt nagrywa interakcje w przeglądarce, składa plansze z nagraniami w Canvas i zapisuje MP4 z atrybucją materiałów.
+3. Treść plansz i kolejność ujęć określa [scenariusz filmu](../film/scenes.json). W scenie przy poszkodowanym przeglądarka podaje próbkę „dalej” przez wirtualny mikrofon. Widać, jak aplikacja przechodzi do kolejnego kroku. W samej aplikacji można też włączyć polskiego lektora. [Weryfikacja obsługi mikrofonu](demo-verification.md)
 4. Prezentację można edytować w PowerPoint lub otworzyć jej JSON w Presentation Studio. Źródła merytoryczne zapisano również w notatkach do slajdów.
 
 ## Pochodzenie materiałów
 
-- Zdjęcie produktowe na okładkę powstało we wbudowanym ImageGen. [Obraz](../web/public/media/hero.webp)
+- Zielona torba na kaflu „Defibrylator w pobliżu” powstała w ImageGen. [Obraz](../web/public/media/hero.webp)
 - Drugie ujęcie ImageGen było ilustracją ulicy we wcześniejszej wersji demonstratora. Obecny widok AR korzysta z aparatu telefonu lub nagrania przejścia opisanego poniżej. [Ilustracja](../web/public/media/approach.webp) · [Atrybucja zdjęć rzeczywistych](open-data.md)
 - Znak mObywatel pochodzi z publicznego serwisu informacyjnego. [Źródło znaku](https://info.mobywatel.gov.pl/apple-touch-icon.png)
 - Renderer filmu bazuje na harnessie code-animations na warunkach MIT. [Licencja](../film/harness/LICENSE)
@@ -19,8 +19,6 @@ Trzy fotografie scenariusza w prezentacji przygotowano w ImageGen. Przedstawiaj�
 ## Nagranie ulicy w mobilnym widoku AR
 
 Nagranie „Przejście ulicą Chmielną” ma 25,2 s i format pionowy 720 × 1280. Pierwsze 16 s obejmuje 21 s rzeczywistego spaceru, przyspieszonego 1,3125×. Kamera rzeczywiście zbliża się od zachodu do bramy pod numerem 21. To fragment spaceru POPtravel z października 2019 r., udostępnionego na CC BY 3.0. Trzy kolejne ujęcia to fotografie drzwi, pasażu i szafki z AED. Metry do skrętu w nagraniu oszacowano na podstawie czasu marszu i położenia bramy w kadrze. Dystanse przy fotografiach są zaokrąglonymi odległościami między geotagami a lokalizacją szafki w OpenAEDMap. Współrzędne GPS telefonu i zegar nagrania są niezależne. [Film źródłowy](https://commons.wikimedia.org/wiki/File:Walking_in_WARSAW_-_Poland_-_4K_60fps_(UHD).webm) · [Autorzy, licencje i montaż](../web/public/media/aed-walk-credits.txt) · [Czasy wskazówek](../web/public/media/aed-walk.json)
-
-W kinowym zbliżeniu na skręt film przechodzi z pionowego ekranu na szeroki kadr tego samego spaceru. Strzałki pochodzą z interfejsu aplikacji, a licznik metrów z odpowiadającej mu klatki telefonu. [Fragment panoramiczny POPtravel, CC BY 3.0](../film/assets/chmielna-panorama.mp4)
 
 ## Prompty ImageGen
 

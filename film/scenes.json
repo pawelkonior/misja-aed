@@ -1,169 +1,46 @@
 {
-  "shots": [
-    [
-      "open",
-      0,
-      3.5
-    ],
-    [
-      "home",
-      3.5,
-      9.6
-    ],
-    [
-      "choose",
-      9.6,
-      16.4
-    ],
-    [
-      "call",
-      16.4,
-      24.0
-    ],
-    [
-      "street",
-      24.0,
-      31.4
-    ],
-    [
-      "turn",
-      31.4,
-      36.4
-    ],
-    [
-      "cabinet",
-      36.4,
-      42.1
-    ],
-    [
-      "return",
-      42.1,
-      49.0
-    ],
-    [
-      "guide",
-      49.0,
-      53.75
-    ],
-    [
-      "voice",
-      53.75,
-      56.4
-    ],
-    [
-      "close",
-      56.4,
-      60
-    ]
-  ],
-  "cues": [
+  "duration": 60,
+  "cardDuration": 2.8,
+  "chapters": [
     {
-      "a": 0,
-      "b": 3.5,
-      "line": "Ktoś upada. Świadek wzywa pomoc."
+      "id": "map",
+      "start": 0,
+      "end": 13,
+      "title": ["Znajdź najbliższy AED."],
+      "detail": "Drugi świadek już udziela pomocy.",
+      "label": ["Mapa AED"]
     },
     {
-      "a": 3.5,
-      "b": 6.25,
-      "line": "Jedna osoba uciska klatkę piersiową."
+      "id": "help",
+      "start": 13,
+      "end": 24.5,
+      "title": ["Uruchom prowadzenie."],
+      "detail": "10 sekund na anulowanie połączenia z 112.",
+      "label": ["Połączenie", "alarmowe"]
     },
     {
-      "a": 6.25,
-      "b": 9.6,
-      "line": "Druga otwiera mapę AED w mObywatelu."
+      "id": "ar",
+      "start": 24.5,
+      "end": 38.5,
+      "title": ["Którą bramą do AED?"],
+      "detail": "Strzałki AR wskazują wejście.",
+      "label": ["Prowadzenie AR"]
     },
     {
-      "a": 9.6,
-      "b": 12.5,
-      "line": "Telefon zaznacza jej pozycję."
+      "id": "return",
+      "start": 38.5,
+      "end": 49.5,
+      "title": ["Wróć z AED", "do poszkodowanego."],
+      "detail": "Mapa pamięta punkt startu.",
+      "label": ["Droga powrotna"]
     },
     {
-      "a": 12.5,
-      "b": 16.4,
-      "line": "Dotyka urządzenia. Trasa piesza jest już gotowa."
-    },
-    {
-      "a": 16.4,
-      "b": 20.7,
-      "line": "Za dziesięć sekund telefon otworzy numer alarmowy."
-    },
-    {
-      "a": 20.7,
-      "b": 24.0,
-      "line": "Świadek już dzwoni, więc wybiera „Anuluj”."
-    },
-    {
-      "a": 24.0,
-      "b": 27.4,
-      "line": "Przed nią Chmielna. Którą bramę wybrać?"
-    },
-    {
-      "a": 27.4,
-      "b": 31.4,
-      "line": "Strzałki prowadzą chodnikiem i odliczają metry do skrętu."
-    },
-    {
-      "a": 31.4,
-      "b": 34.2,
-      "line": "Jeszcze cztery metry, w prawo."
-    },
-    {
-      "a": 34.2,
-      "b": 36.4,
-      "line": "Brama numer dwadzieścia jeden."
-    },
-    {
-      "a": 36.4,
-      "b": 39.1,
-      "line": "Dalej przez pasaż z muralem."
-    },
-    {
-      "a": 39.1,
-      "b": 42.1,
-      "line": "Zielona szafka. Tu jest defibrylator."
-    },
-    {
-      "a": 42.1,
-      "b": 45.5,
-      "line": "Zabiera urządzenie i wybiera powrót."
-    },
-    {
-      "a": 45.5,
-      "b": 49.0,
-      "line": "Telefon pamięta, skąd ruszyła po pomoc."
-    },
-    {
-      "a": 49.0,
-      "b": 52.2,
-      "line": "Przy poszkodowanym otwiera instrukcję głosową."
-    },
-    {
-      "a": 52.2,
-      "b": 53.75,
-      "line": "Naklej elektrody.",
-      "audio": "krok-3",
-      "trim": 1.49,
-      "cutIn": 0.2,
-      "specific": [
-        0.05,
-        0.51
-      ]
-    },
-    {
-      "a": 53.75,
-      "b": 54.56,
-      "line": "Dalej.",
-      "mic": true
-    },
-    {
-      "a": 54.56,
-      "b": 56.4,
-      "line": "Bez dotykania ekranu."
-    },
-    {
-      "a": 56.4,
-      "b": 60,
-      "line": "Otwarty zbiór łączy ponad osiemnaście tysięcy lokalizacji."
+      "id": "guide",
+      "start": 49.5,
+      "end": 60,
+      "title": ["Otwórz instrukcję", "przy poszkodowanym."],
+      "detail": "Komenda „dalej” zmienia krok.",
+      "label": ["Instrukcja AED"]
     }
   ]
 }

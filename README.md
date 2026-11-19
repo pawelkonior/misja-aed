@@ -39,7 +39,7 @@ npm ci
 npm run dev
 ```
 
-Otwórz adres wypisany przez Vite. Dodaj do niego `/pokaz/`, żeby obejrzeć film z polskim lektorem. Kamera, lokalizacja i rozpoznawanie mowy wymagają HTTPS lub localhost i zgód przeglądarki. Link publiczny zapewnia HTTPS na telefonie. Wyznaczanie nowych tras korzysta z profilu pieszego FOSSGIS/OSRM. Podkład online korzysta z OpenStreetMap. Publiczna baza i zdjęcia trasy demonstracyjnej są częścią aplikacji. Dostęp do GPS blisko budynków i wewnątrz może być niedokładny. Prototyp ilustruje propozycję integracji z mObywatelem bez dostępu do systemów tożsamości.
+Otwórz adres wypisany przez Vite. Dodaj do niego `/pokaz/`, żeby obejrzeć minutowy pokaz aplikacji bez dźwięku. Kamera, lokalizacja i rozpoznawanie mowy wymagają HTTPS lub localhost i zgód przeglądarki. Link publiczny zapewnia HTTPS na telefonie. Wyznaczanie nowych tras korzysta z profilu pieszego FOSSGIS/OSRM. Podkład online korzysta z OpenStreetMap. Publiczna baza i zdjęcia trasy demonstracyjnej są częścią aplikacji. Dostęp do GPS blisko budynków i wewnątrz może być niedokładny. Prototyp ilustruje propozycję integracji z mObywatelem bez dostępu do systemów tożsamości.
 
 ```sh
 npm run check
@@ -49,7 +49,7 @@ VITE_PUBLIC_BASE=/misja-aed/ npm run build
 
 ## Film i prezentacja
 
-- [Film MP4](deliverables/Misja-AED-60s.mp4), H.264, 1920 × 1080, 30 kl./s, 60 sekund, polski lektor. Film śledzi drugiego świadka od kafla AED na pulpicie przez trasę i AR do powrotu z urządzeniem. Kręgi na ekranie wskazują dotknięcia.
+- [Film MP4](deliverables/Misja-AED-60s.mp4) trwa 60 sekund i działa bez dźwięku. Każdą czynność zapowiada krótka plansza po polsku. Potem widać cały telefon, dotknięcie zaznaczone kręgiem i reakcję aplikacji. Pokaz prowadzi od wyszukania AED przez dojście z AR po powrót z urządzeniem i instrukcję przy poszkodowanym.
 - [Edytowalny PowerPoint](deliverables/Misja-AED.pptx) i [projekt do importu w Presentation Studio](deliverables/Misja-AED.studio.json). Jedenaście slajdów w stylu GovTech korzysta z układów oryginalnej prezentacji Risk Engine. Slajd 6 odtwarza film. Źródła znajdują się w notatkach prelegenta. [PDF wyeksportowany ze Studia](deliverables/Misja-AED.pdf) · [Otwórz projekt w lokalnym Studio](http://127.0.0.1:5174/?deck=misja-aed) · [Instalacja w Presentation Studio](studio/README.md).
 - [Źródła filmu, ilustracje i odtwarzanie renderu](docs/media.md) · [Research usług AED i interfejsu mObywatela](docs/research.md).
 

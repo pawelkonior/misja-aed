@@ -208,7 +208,7 @@ storyFrame(864, 344, 'powrot-z-defibrylatorem.jpg', 'Ilustracja sytuacji: świad
 
 slide(
   'Instrukcja mówi. Świadek ma wolne ręce',
-  'Po przyniesieniu AED do poszkodowanego zastosuj się do poleceń dyspozytora i urządzenia. Aplikacja odczytuje kroki po polsku oraz pokazuje animacje dla dorosłych. Po włączeniu obsługi głosowej wypowiedzenie słowa „dalej” przełącza ekran. Ilustracje pokazują dokładnie dwa kolejne kadry działającej aplikacji. W filmie demonstracyjnym można posłuchać polskiego lektora.',
+  'Po przyniesieniu AED do poszkodowanego zastosuj się do poleceń dyspozytora i urządzenia. Aplikacja odczytuje kroki po polsku oraz pokazuje animacje dla dorosłych. Po włączeniu obsługi głosowej wypowiedzenie słowa „dalej” przełącza ekran. Ilustracje pokazują dwa kolejne kadry działającej aplikacji.',
   [demo + '#instrukcja', erc, 'https://www.gov.pl/web/mswia/pierwsza-pomoc', source + '/tree/main/web/src/features/rescue'],
 );
 pic('instrukcja-telefon.jpg', 'Działający ekran aplikacji z animowanym krokiem o elektrodach i obudową telefonu', 72, 165, 215, 453);
@@ -223,9 +223,13 @@ for (const [x, asset, alt, heading, body] of instructionPanels) {
 }
 meta('Polecenia dyspozytora i urządzenia mają pierwszeństwo.', 326, 614, 881, 27, 15);
 
+const { chapters } = JSON.parse(fs.readFileSync(path.join(root, 'film/scenes.json'), 'utf8'));
+const filmChapters = chapters
+  .map(({ start, label }) => `${start.toLocaleString('pl-PL')} s  ${label.join(' ')}`)
+  .join('\n');
 slide(
   'Po AED i z powrotem',
-  'Film prowadzi przez bieżącą wersję aplikacji. Pokazuje wybór urządzenia, dojście przez bramę, odnalezienie szafki, drogę do zapisanego punktu startu i instrukcję. W pokazie slajdów naciśnij obraz, aby rozpocząć odtwarzanie.',
+  'W trybie pokazu naciśnij obraz, aby odtworzyć film. Każda plansza zapowiada czynność, którą za chwilę wykona świadek. Krąg na ekranie telefonu wskazuje miejsce dotknięcia.\n\n' + filmChapters,
   [
     source + '/releases/latest/download/Misja-AED-60s.mp4',
     source + '/tree/main/film',
@@ -242,7 +246,7 @@ txt('Świadek znajduje AED i wraca z nim na miejsce zdarzenia.', 953, 312, 249, 
   color: colors.paper,
   bold: true,
 });
-meta('Polski lektor', 954, 574, 240, 36, 16, '#ACCDD6');
+meta('Film bez dźwięku', 954, 574, 240, 36, 16, '#ACCDD6');
 
 slide(
   'Dwa źródła, ' + pretty(n) + ' lokalizacje',

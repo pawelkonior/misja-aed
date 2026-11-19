@@ -18,7 +18,7 @@ npm run dev -- --port 5174 --strictPort
 
 Prezentacja źródłowa to `deliverables/Misja-AED.studio.json`. Ponowne uruchomienie instalatora synchronizuje jej wersję, film i skróty do lokalnego katalogu Studio. Edycje w przeglądarce są zapisywane osobno dla każdej wersji materiału źródłowego. Edytowalny projekt można pobrać z menu Studio. Załączony film trafia pod lokalny adres `/media/misja-aed/demo.mp4`.
 
-Na slajdzie z filmem element typu `image` przechowuje plakat w `src` i ścieżkę do MP4 w `videoSrc`. W trybie **Prezentuj** Studio wyświetla natywny odtwarzacz z paskiem postępu i dźwiękiem. W edytorze, miniaturach i PDF pozostaje plakat.
+Na slajdzie z filmem element typu `image` przechowuje plakat w `src` i ścieżkę do MP4 w `videoSrc`. W trybie **Prezentuj** Studio odtwarza minutowy film bez dźwięku. Pasek postępu umożliwia przewijanie. W edytorze, miniaturach i PDF widać plakat.
 
 ## Eksport
 

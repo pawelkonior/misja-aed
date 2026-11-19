@@ -1,279 +1,174 @@
-// The production device shell is recorded at double resolution. CDP sends
-// actual touch events. The edit adds a short translucent ring for each tap.
+// Record the complete mobile UI at a fixed size. Every visible touch activates the real app.
 import { createRequire } from "node:module";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { once } from "node:events";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import path from "node:path";
 
 const require = createRequire(new URL("../web/package.json", import.meta.url));
 const { chromium } = require("playwright");
 const root = fileURLToPath(new URL(".", import.meta.url));
-const out = path.join(root, "work", "mobile");
+const out = path.join(root, "work", "silent");
 const base = process.env.AED_DEMO_URL || "http://127.0.0.1:5194/";
-const { shots } = JSON.parse(
+const { chapters, cardDuration } = JSON.parse(
   await readFile(path.join(root, "scenes.json"), "utf8"),
 );
-const scenes = shots.filter((s) => !["open", "close"].includes(s[0]));
-const selected = process.argv.slice(2);
-if (selected.some((s) => !scenes.some(([k]) => k === s)))
-  throw Error("Unknown shot");
-const queue = scenes.filter(([s]) => !selected.length || selected.includes(s));
+const selection = process.argv.slice(2);
+if (selection.some((id) => !chapters.some((chapter) => chapter.id === id)))
+  throw Error("Unknown chapter");
+const queue = chapters.filter(
+  (chapter) => !selection.length || selection.includes(chapter.id),
+);
 const fps = 30;
 const start = { latitude: 52.23123, longitude: 21.01416, accuracy: 4 };
-const target = { latitude: 52.2321787, longitude: 21.0146526, accuracy: 4 };
-const row = '[data-act="select"][data-val="node/14154384101"]';
-const sel = {
-  tile: ".nearby-service",
-  directions: '[data-act="directions"]',
-  guide: '[data-act="guide"]',
-  cancel: ".call-toast-actions button",
-  record: '[data-act="recording"]',
-  back: '[data-act="return"]',
-  instructions: '[data-act="arrive"]',
-  next: ".rescue-actions .rescue-primary",
-  read: ".rescue-voice-controls button:first-child",
-};
+const cabinet = { latitude: 52.2321787, longitude: 21.0146526, accuracy: 4 };
+const target = '.leaflet-marker-icon[title="Dom towarowy Bracia Jabłkowscy"]';
+const directions = '[data-act="directions"]',
+  guide = '[data-act="guide"]';
+const cancel = ".call-toast-actions button",
+  back = '[data-act="return"]';
+const microphone = ".rescue-voice-controls button:nth-child(2)";
 const events = {
-  home: [[4.72, sel.tile]],
-  choose: [[3.0, row]],
-  call: [
-    [0.54, sel.guide],
-    [5.38, sel.cancel],
-    [7.24, sel.record],
+  map: [
+    [2.35, ".nearby-service"],
+    [6.45, target],
+  ],
+  help: [
+    [1.8, guide],
+    [6.35, cancel],
   ],
   return: [
-    [1.1, sel.back],
-    [6.36, sel.instructions],
-  ],
-  guide: [
-    [0.64, sel.next],
-    [1.7, sel.next],
-    [3.12, sel.read],
+    [1.85, back],
+    [6.93, '[data-act="arrive"]'],
   ],
 };
-function focus(scene, time) {
-  switch (scene) {
-    case "home":
-      return [
-        time < 0.72 ? ".wallet-brand" : time < 4.85 ? sel.tile : ".am-map",
-        time < 0.72 ? 320 : 389,
-        time < 4.85 ? 0 : 10,
-      ];
-    case "choose":
-      return [
-        time < 2.16
-          ? ".am-map"
-          : time < 3.2
-            ? row
-            : time < 4.7
-              ? ".am-panel-head"
-              : ".am-map",
-        390,
-        time < 2.16 ? 15 : 0,
-      ];
-    case "call":
-      return [
-        time < 0.6
-          ? sel.guide
-          : time < 5.56
-            ? ".call-toast"
-            : time < 6.82
-              ? ".am-steps"
-              : sel.record,
-        386,
-        time < 0.6 ? -12 : 0,
-      ];
-    case "street":
-    case "turn":
-      return [".ar-guideline", 390, 3];
-    case "cabinet":
-      return [
-        time < 2.74
-          ? ".ar-guideline"
-          : time < 4.61
-            ? ".ar-camera"
-            : ".ar-instruction",
-        382,
-        time < 2.74 ? 0 : time < 4.61 ? 18 : -8,
-      ];
-    case "return":
-      return [
-        time < 1.18
-          ? sel.back
-          : time < 4.05
-            ? ".am-map"
-            : time < 5.8
-              ? ".am-panel-head"
-              : sel.instructions,
-        386,
-        0,
-      ];
-    case "voice":
-      return [".rescue-art", 385, 20];
-    case "guide":
-      return [
-        time < 0.76
-          ? ".rescue-copy h2"
-          : time < 2.65
-            ? ".rescue-art"
-            : time < 3.5
-              ? sel.read
-              : ".rescue-art",
-        385,
-        time < 0.76 ? 0 : time < 2.65 ? 0 : time < 3.5 ? -24 : 0,
-      ];
-  }
-}
-async function ensureVisible(page, selector) {
+
+async function reveal(page, selector) {
   await page
     .locator(selector)
     .first()
     .evaluate((el) => {
-      const pane = document.querySelector(".phone-scroll"),
-        box = pane.getBoundingClientRect(),
+      const pane = document.querySelector(".phone-scroll");
+      const box = pane.getBoundingClientRect(),
         r = el.getBoundingClientRect();
-      if (r.top < box.top + 3 || r.bottom > box.bottom - 8)
-        pane.scrollTop += r.y + r.height * 0.5 - (box.top + box.height * 0.56);
+      if (r.top < box.top + 3 || r.bottom > box.bottom - 9)
+        pane.scrollTop += r.y + r.height / 2 - (box.top + box.height * 0.56);
     });
 }
 async function touch(page, cdp, selector) {
   const node = page.locator(selector).first();
-  await node.waitFor({ state: "visible", timeout: 10000 });
-  await ensureVisible(page, selector);
-  const r = await node.boundingBox(),
-    shell = await page.locator(".phone-body").boundingBox();
-  const x = r.x + r.width * 0.54,
-    y = r.y + r.height * 0.5;
+  await node.waitFor({ state: "visible" });
+  await reveal(page, selector);
+  const b = await node.boundingBox(),
+    frame = await page.locator(".phone-body").boundingBox();
+  const x = b.x + b.width / 2,
+    y = b.y + b.height / 2;
+  const hit = await page.evaluate(
+    ({ x, y, sel }) => !!document.elementFromPoint(x, y)?.closest(sel),
+    { x, y, sel: selector },
+  );
+  if (!hit) throw Error("Touch misses " + selector);
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
-    touchPoints: [{ x, y, radiusX: 7, radiusY: 7, force: 0.58 }],
+    touchPoints: [{ x, y, radiusX: 7, radiusY: 7, force: 0.55 }],
   });
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchEnd",
     touchPoints: [],
   });
-  return { x: x - shell.x, y: y - shell.y };
+  return { x: x - frame.x, y: y - frame.y };
 }
-async function setup(page, ctx, cdp, scene) {
-  const film = ["street", "turn", "cabinet"].includes(scene);
-  const entry = film
-    ? "nagranie"
-    : scene === "home"
-      ? "pulpit"
-      : scene === "guide"
-        ? "instrukcja"
-        : "mapa";
+async function prepare(page, ctx, cdp, id) {
+  const entry = {
+    map: "pulpit",
+    help: "mapa",
+    ar: "nagranie",
+    return: "mapa",
+    guide: "instrukcja",
+  }[id];
   await page.goto(new URL("#" + entry, base).href, {
     waitUntil: "networkidle",
   });
   await page.evaluate(() => document.fonts.ready);
-  if (entry === "mapa") await page.locator(row).first().waitFor();
-  if (scene === "call" || scene === "return") {
-    await touch(page, cdp, row);
-    await touch(page, cdp, sel.directions);
-    if (scene === "return") {
-      await touch(page, cdp, sel.guide);
-      await touch(page, cdp, sel.cancel);
-      await ctx.setGeolocation(target);
-      await page.locator(sel.back).waitFor();
+  if (id === "help" || id === "return") {
+    await touch(page, cdp, target);
+    await touch(page, cdp, directions);
+    await reveal(page, guide);
+    if (id === "return") {
+      await touch(page, cdp, guide);
+      await touch(page, cdp, cancel);
+      await ctx.setGeolocation(cabinet);
+      await page.locator(back).waitFor();
+      await reveal(page, back);
     }
   }
-  if (film)
+  if (id === "ar")
     await page.waitForFunction(
       () =>
         document.querySelector("video")?.readyState >= 2 &&
         !!document.querySelector(".ar-maneuver"),
     );
-  if (scene === "guide") {
-    // Select the app's bundled Polish reader. No speech result or UI transition is injected.
-    await page.evaluate(() =>
-      Object.defineProperty(speechSynthesis, "getVoices", { value: () => [] }),
-    );
-  }
-  await page.clock.install();
-  await page.clock.pauseAt(new Date(Date.now() + 180));
-}
-async function mediaFrame(page, t) {
-  await page.evaluate(async (time) => {
-    const v = document.querySelector("video");
-    if (Math.abs(v.currentTime - time) < 0.012 && v.readyState >= 2) return;
-    await new Promise((res, rej) => {
-      v.addEventListener("seeked", res, { once: true });
-      v.addEventListener("error", rej, { once: true });
-      v.currentTime = time;
+  if (id === "guide") {
+    // Warm the app's on-device recognizer before timing the recorded microphone input.
+    await page
+      .getByText("O instrukcji i obsłudze głosowej", { exact: true })
+      .click();
+    await page.getByLabel("Rozpoznawaj mowę na urządzeniu").check();
+    await page
+      .getByText("O instrukcji i obsłudze głosowej", { exact: true })
+      .click();
+    await touch(page, cdp, microphone);
+    await page
+      .getByText("Mikrofon gotowy. Powiedz „dalej”.", { exact: true })
+      .waitFor({ timeout: 90000 });
+    await touch(page, cdp, microphone);
+    await page
+      .getByRole("button", { name: "Krok 3. Naklej elektrody" })
+      .click();
+    await touch(page, cdp, microphone);
+    await page.locator(".phone-scroll").evaluate((el) => {
+      el.scrollTop = 0;
     });
-  }, t);
+  } else {
+    await page.clock.install();
+    await page.clock.pauseAt(new Date(Date.now() + 200));
+  }
 }
-function footageTime(scene, t) {
-  if (scene === "street") return 0.15 + t * 1.43;
-  if (scene === "turn") return 14.38 + t * 0.31;
-  return 19.05 + t * 0.96;
+async function setWalkFrame(page, time) {
+  await page.evaluate(async (time) => {
+    const video = document.querySelector("video");
+    if (Math.abs(video.currentTime - time) < 0.008 && video.readyState >= 2)
+      return;
+    await new Promise((resolve, reject) => {
+      const onError = () => {
+        video.removeEventListener("seeked", onSeek);
+        reject(Error("Street video decode failed"));
+      };
+      const onSeek = () => {
+        video.removeEventListener("error", onError);
+        resolve();
+      };
+      video.addEventListener("error", onError, { once: true });
+      video.addEventListener("seeked", onSeek, { once: true });
+      video.currentTime = time;
+    });
+  }, time);
 }
-async function prepareVoice(page, cdp) {
-  await page.goto(new URL("#instrukcja", base).href, {
-    waitUntil: "networkidle",
-  });
-  await page
-    .getByText("O instrukcji i obsłudze głosowej", { exact: true })
-    .click();
-  await page.getByLabel("Rozpoznawaj mowę na urządzeniu").check();
-  await page
-    .getByText("O instrukcji i obsłudze głosowej", { exact: true })
-    .click();
-  const mic = ".rescue-voice-controls button:nth-child(2)";
-  await touch(page, cdp, mic);
-  await page
-    .getByText("Mikrofon gotowy. Powiedz „dalej”.", { exact: true })
-    .waitFor({ timeout: 90000 });
-  await touch(page, cdp, mic);
-  await page.getByRole("button", { name: "Krok 3. Naklej elektrody" }).click();
-  await page.evaluate(() => {
-    const original = navigator.mediaDevices.getUserMedia.bind(
-      navigator.mediaDevices,
-    );
-    // Observe speech onset without supplying recognition results to the app.
-    navigator.mediaDevices.getUserMedia = async (...args) => {
-      const stream = await original(...args),
-        audio = new AudioContext(),
-        input = audio.createMediaStreamSource(stream),
-        meter = audio.createAnalyser();
-      meter.fftSize = 512;
-      input.connect(meter);
-      const samples = new Float32Array(512);
-      function check() {
-        meter.getFloatTimeDomainData(samples);
-        if (samples.some((sample) => Math.abs(sample) > 0.024)) {
-          window.__speechOn = performance.now();
-          input.disconnect();
-          void audio.close();
-        } else if (stream.active) requestAnimationFrame(check);
-      }
-      await audio.resume();
-      requestAnimationFrame(check);
-      return stream;
-    };
-  });
-  await touch(page, cdp, mic);
-  await page.locator(".phone-scroll").evaluate((p) => {
-    p.scrollTop = 0;
-  });
-}
-async function record(browser, shot) {
-  const [scene, from, to] = shot;
-  const context = await browser.newContext({
+async function record(browser, chapter) {
+  const scene = chapter.id;
+  const ctx = await browser.newContext({
     viewport: { width: 520, height: 900 },
     deviceScaleFactor: 2,
     locale: "pl-PL",
     permissions:
-      scene === "voice" ? ["geolocation", "microphone"] : ["geolocation"],
+      scene === "guide" ? ["geolocation", "microphone"] : ["geolocation"],
     geolocation: start,
   });
-  const page = await context.newPage(),
-    cdp = await context.newCDPSession(page);
+  const page = await ctx.newPage(),
+    cdp = await ctx.newCDPSession(page);
   const pending = path.join(out, scene + ".pending.mp4");
-  const ff = spawn(
+  const encoder = spawn(
     "ffmpeg",
     [
       "-hide_banner",
@@ -300,7 +195,7 @@ async function record(browser, shot) {
       "-crf",
       "15",
       "-g",
-      "20",
+      "24",
       "-pix_fmt",
       "yuv420p",
       "-movflags",
@@ -309,210 +204,110 @@ async function record(browser, shot) {
     ],
     { stdio: ["pipe", "ignore", "inherit"] },
   );
-  const finished = once(ff, "close");
-  const track = [],
-    taps = [],
-    overlays = [],
-    art = [];
+  const finished = once(encoder, "close");
+  const taps = [];
+  let changedStep = null;
   try {
-    if (scene === "voice") await prepareVoice(page, cdp);
-    else await setup(page, context, cdp, scene);
+    await prepare(page, ctx, cdp, scene);
     const frame = await page.locator(".phone-body").boundingBox();
     if (frame.width !== 410 || frame.height !== 864)
-      throw Error("Expected the mobile device shell");
-    let last = { x: 205, y: 380, w: 389 };
-    let speechOn = null,
-      advancedAt = null;
+      throw Error("Unexpected mobile viewport");
+    const total = Math.round(
+      (chapter.end - chapter.start - cardDuration) * fps,
+    );
     const wall = performance.now();
-    const totalFrames =
-      scene === "voice" ? 14 * fps : Math.round((to - from) * fps);
-    for (let i = 0; i < totalFrames; i++) {
+    for (let i = 0; i < total; i++) {
       const t = i / fps;
-      if (["street", "turn", "cabinet"].includes(scene))
-        await mediaFrame(page, footageTime(scene, t));
-      if (scene === "return" && i === Math.round(4.6 * fps)) {
-        await context.setGeolocation(start);
+      if (scene === "ar") await setWalkFrame(page, 12.95 + t);
+      if (scene === "return" && i === Math.round(5.12 * fps)) {
+        await ctx.setGeolocation(start);
         await page
           .getByRole("heading", { name: "Jesteś przy punkcie startu" })
           .waitFor();
       }
-      const action = (events[scene] || []).find(
-        ([at]) => Math.round(at * fps) === i,
-      );
+      const action = events[scene]?.find(([at]) => Math.round(at * fps) === i);
       if (action) {
         const position = await touch(page, cdp, action[1]);
         taps.push({ t, ...position });
+        if (scene === "return" && action[1] === back) {
+          await page.locator(".am-leg-return").waitFor();
+          await page.locator(".phone-scroll").evaluate((el) => {
+            el.scrollTop = 0;
+          });
+        }
       }
-      if (scene === "voice") {
+      if (scene === "guide") {
         await new Promise((done) =>
           setTimeout(done, Math.max(0, wall + t * 1000 - performance.now())),
         );
         if (
-          speechOn === null &&
-          (await page.evaluate(() => Boolean(window.__speechOn)))
-        )
-          speechOn = t;
-        if (
-          advancedAt === null &&
+          changedStep === null &&
           (await page
             .getByRole("heading", { name: "Odsuń się na polecenie AED" })
             .count())
         )
-          advancedAt = t;
-      } else await page.clock.runFor(i % 3 === 0 ? 34 : 33);
-      const [selector, w, dy] = focus(scene, t);
-      // Physical panning of the real phone and editorial crop share a target.
-      if (scene === "choose" && i === Math.round(2.16 * fps))
-        await ensureVisible(page, row);
-      if (scene === "call" && i === Math.round(6.82 * fps))
-        await ensureVisible(page, sel.record);
-      if (scene === "return" && i === Math.round(1.18 * fps)) {
-        await page.locator(".am-leg-return").waitFor();
-        await page.locator(".phone-scroll").evaluate((p) => {
-          p.scrollTop = 0;
-        });
+          changedStep = t;
+      } else {
+        await page.clock.runFor(i % 3 === 0 ? 34 : 33);
       }
-      if (scene === "guide" && i === Math.round(3.55 * fps))
-        await page.locator(".phone-scroll").evaluate((p) => {
-          p.scrollTop = 0;
-        });
-      const pos = await page.evaluate(
-        ({ selector, frame, w, dy }) => {
-          const el = Array.from(document.querySelectorAll(selector)).find(
-            (x) => x.getClientRects().length,
-          );
-          if (!el) return null;
-          const b = el.getBoundingClientRect(),
-            h = w / 1.67;
-          return {
-            x: Math.max(
-              9 + w / 2,
-              Math.min(frame.width - 9 - w / 2, b.x + b.width / 2 - frame.x),
-            ),
-            y: Math.max(
-              50 + h / 2,
-              Math.min(
-                frame.height - 22 - h / 2,
-                b.y + b.height / 2 - frame.y + dy,
-              ),
-            ),
-            w,
-          };
-        },
-        { selector, frame, w, dy },
-      );
-      if (pos) {
-        const q = i === 0 ? 1 : 0.14;
-        for (const k of ["x", "y", "w"]) last[k] += (pos[k] - last[k]) * q;
-      }
-      track.push([+last.x.toFixed(2), +last.y.toFixed(2), +last.w.toFixed(2)]);
-      if (scene === "guide" || scene === "voice") {
-        art.push(
-          await page.evaluate((frame) => {
-            const box = (selector) => {
-              const r = document
-                .querySelector(selector)
-                .getBoundingClientRect();
-              return [r.x - frame.x, r.y - frame.y, r.width, r.height];
-            };
-            const text = document.querySelector(".rescue-copy h2");
-            return { panel: box(".rescue-art"), title: text.textContent };
-          }, frame),
-        );
-      }
-      if (scene === "street" || scene === "turn") {
-        const overlay = await page.evaluate(
-          ({ frame, sourceTime }) => {
-            const camera = document.querySelector(".ar-camera"),
-              ground = document.querySelector(".ar-guideline"),
-              counter = document.querySelector(".ar-maneuver");
-            if (!ground || !counter) return null;
-            const box = (el) => {
-              const r = el.getBoundingClientRect();
-              return [r.x - frame.x, r.y - frame.y, r.width, r.height];
-            };
-            const svg = ground.cloneNode(true);
-            const clones = [svg, ...svg.querySelectorAll("*")];
-            [ground, ...ground.querySelectorAll("*")].forEach((item, n) => {
-              const style = getComputedStyle(item),
-                dst = clones[n];
-              dst.removeAttribute("class");
-              dst.removeAttribute("style");
-              if (item === ground) return;
-              for (const prop of [
-                "opacity",
-                "stroke",
-                "stroke-width",
-                "stroke-opacity",
-                "stroke-linejoin",
-                "stroke-linecap",
-                "filter",
-                "fill",
-              ]) {
-                let val = style.getPropertyValue(prop);
-                if (val.includes("url(")) {
-                  const at = val.lastIndexOf("#");
-                  if (at >= 0)
-                    val = "url(" + val.slice(at).replace(/["']/g, "");
-                }
-                dst.style.setProperty(prop, val);
-              }
-            });
-            const r = box(ground);
-            svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-            svg.setAttribute("width", r[2]);
-            svg.setAttribute("height", r[3]);
-            return {
-              card: box(counter),
-              floor: r,
-              camera: box(camera),
-              sourceTime,
-              svg: new XMLSerializer().serializeToString(svg),
-            };
-          },
-          { frame, sourceTime: footageTime(scene, t) },
-        );
-        overlays.push(overlay);
-      }
-      const frameData = await cdp.send("Page.captureScreenshot", {
+      const capture = await cdp.send("Page.captureScreenshot", {
         format: "jpeg",
-        quality: 91,
+        quality: 94,
         fromSurface: true,
         captureBeyondViewport: false,
         clip: { ...frame, scale: 1 },
       });
-      if (!ff.stdin.write(Buffer.from(frameData.data, "base64")))
-        await once(ff.stdin, "drain");
-      if (scene === "voice" && advancedAt !== null && t > advancedAt + 1.72)
-        break;
+      if (!encoder.stdin.write(Buffer.from(capture.data, "base64")))
+        await once(encoder.stdin, "drain");
     }
-    ff.stdin.end();
+    // Verify recorded UI results before promoting a clip into the renderer.
+    if (scene === "map") await page.locator(directions).waitFor();
+    if (scene === "help" && (await page.locator(cancel).count()))
+      throw Error("Countdown was not cancelled");
+    if (scene === "return")
+      await page
+        .getByRole("heading", { name: /pomoc|reakcję/i })
+        .first()
+        .waitFor({ timeout: 3000 });
+    if (scene === "guide" && changedStep === null)
+      throw Error("The actual microphone did not advance the guide");
+    encoder.stdin.end();
     if ((await finished)[0] !== 0) throw Error("Video encoder failed");
-    if (scene === "voice" && (speechOn === null || advancedAt === null))
-      throw Error("No recorded microphone onset or step transition");
     await rename(pending, path.join(out, scene + ".mp4"));
     await writeFile(
       path.join(out, scene + ".json"),
-      JSON.stringify({
-        fps,
-        taps,
-        track,
-        ...(overlays.length ? { overlays } : {}),
-        ...(art.length ? { art } : {}),
-        ...(scene === "voice" ? { speechOn, advancedAt } : {}),
-      }),
+      JSON.stringify({ fps, taps, changedStep }),
     );
-    console.log(scene, track.length, "frames", taps.length, "touches");
-  } catch (error) {
-    ff.stdin.destroy();
-    ff.kill();
+    console.log(
+      scene,
+      total + " frames",
+      taps.length + " touches",
+      changedStep === null
+        ? ""
+        : "voice advanced at " + changedStep.toFixed(2) + "s",
+    );
+  } catch (e) {
+    encoder.stdin.destroy();
+    encoder.kill();
     await rm(pending, { force: true });
-    throw error;
+    throw e;
   } finally {
-    await context.close();
+    await ctx.close();
   }
 }
 await mkdir(out, { recursive: true });
+const command = path.join(out, "komenda-dalej.wav");
+execFileSync("ffmpeg", [
+  "-hide_banner",
+  "-loglevel",
+  "error",
+  "-y",
+  "-i",
+  path.join(root, "assets", "komenda-dalej.wav"),
+  "-af",
+  "adelay=1700:all=1,apad=pad_dur=8",
+  command,
+]);
 const browser = await chromium.launch({
   channel: process.env.AED_CHROME_CHANNEL || "chrome",
   headless: true,
@@ -521,8 +316,7 @@ const browser = await chromium.launch({
     "--force-color-profile=srgb",
     "--use-fake-device-for-media-stream",
     "--use-fake-ui-for-media-stream",
-    "--use-file-for-fake-audio-capture=" +
-      path.join(root, "assets", "komenda-dalej.wav"),
+    "--use-file-for-fake-audio-capture=" + command,
   ],
 });
 try {
